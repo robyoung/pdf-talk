@@ -46,9 +46,18 @@ fn create_min() {
     let content = Content {
         operations: vec![
             Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F1".into(), 48.into()]),
+            Operation::new("Tf", vec!["F1".into(), 36.into()]),
             Operation::new("Td", vec![100.into(), 600.into()]),
-            Operation::new("Tj", vec![Object::string_literal("Mini PDF")]),
+            Operation::new("TL", vec![48.into()]),
+            Operation::new(
+                "Tj",
+                vec![Object::string_literal("This is a block of text that")],
+            ),
+            Operation::new("T*", vec![]),
+            Operation::new(
+                "Tj",
+                vec![Object::string_literal("should spread across the page.")],
+            ),
             Operation::new("ER", vec![]),
         ],
     };
