@@ -2,6 +2,8 @@
 
 ## Tasks
 
+- [ ] Use CID font in maxi PDF
+- [ ] Read a file with lopdf. Specifically see if ObjStm is unpacked.
 - [ ] Write out overall structure
 
 ## Reference
@@ -15,6 +17,10 @@
 
 ### qpdf
 
+https://qpdf.readthedocs.io
+
+Useful for exploring the structure of a PDF on the command line
+
 ```bash
 qpdf --json out.pdf | bat -l json
 ```
@@ -23,6 +29,44 @@ Show a pretty printed version
 ```bash
 qpdf --qdf --object-streams=disable out.pdf -
 ```
+
+### allsorts
+
+https://github.com/yeslogic/allsorts-tools
+
+Useful for exploring and subsetting fonts.
+
+Print the character map
+```bash
+allsorts cmap --font input-font.ttf
+```
+
+Subset a font with characters from a block of text
+```bash
+allsorts subset \
+  --text "text to use for subsetting" \
+  input-font.ttf output-font.ttf
+```
+
+### mutool
+
+Useful for extracting fonts and images from PDF files.
+
+List fonts and images
+```bash
+mutool info -FI input.pdf
+```
+
+Show internal PDF objects (can be browsed more easily with qpdf).
+```bash
+mutool show input.pdf <object id>
+```
+
+Extract all fonts and images into current directory.
+```bash
+mutool extract input.pdf
+```
+
 
 ### Crates
 
