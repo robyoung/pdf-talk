@@ -1,5 +1,4 @@
 use lopdf::{dictionary, Document, Object, ObjectId, Stream};
-use std::io::Read;
 
 pub(crate) fn type1(base_font: &str) -> FontType1Builder {
     FontType1Builder {

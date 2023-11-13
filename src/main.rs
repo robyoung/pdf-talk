@@ -13,10 +13,10 @@ pub(crate) struct Cli {
     command: Command,
 }
 
-impl Into<Config> for Cli {
-    fn into(self) -> Config {
+impl From<Cli> for Config {
+    fn from(cli: Cli) -> Config {
         Config {
-            xref_type: self.xref_type.into(),
+            xref_type: cli.xref_type.into(),
         }
     }
 }
@@ -36,9 +36,9 @@ pub(crate) enum XrefTypeWrapper {
     Table,
 }
 
-impl Into<XrefType> for XrefTypeWrapper {
-    fn into(self) -> XrefType {
-        match self {
+impl From<XrefTypeWrapper> for XrefType {
+    fn from(wrapper: XrefTypeWrapper) -> Self {
+        match wrapper {
             XrefTypeWrapper::Table => XrefType::CrossReferenceTable,
             XrefTypeWrapper::Stream => XrefType::CrossReferenceStream,
         }
@@ -53,6 +53,3 @@ pub fn main() {
         Command::CreateMaxi => create_maxi(cli.into()),
     }
 }
-
-
-
