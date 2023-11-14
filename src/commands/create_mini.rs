@@ -10,7 +10,7 @@ pub fn main(config: Config) {
 
     let pages_id = doc.new_object_id();
 
-    let font_id = fonts::type1("Ariel").add_to_doc(&mut doc);
+    let font_id = fonts::type1("Helvetica").add_to_doc(&mut doc);
 
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
