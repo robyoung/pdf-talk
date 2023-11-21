@@ -42,6 +42,8 @@ allsorts cmap --font input-font.ttf
 ```
 
 Subset a font with characters from a block of text
+
+**WARNING: this seems to optimise away some information, use pyftsubset instead**
 ```bash
 allsorts subset \
   --text "text to use for subsetting" \
@@ -67,6 +69,22 @@ Extract all fonts and images into current directory.
 mutool extract input.pdf
 ```
 
+### fonttools
+
+Subset a font with `pyftsubset`
+```bash
+pyftsubset input-font.ttf \
+  --gids=<glyph-ids> \
+  --layout-features='*' \
+  --glyph-names \
+  --symbol-cmap \
+  --notdef-glyph \
+  --notdef-outline \
+  --name-IDs='*' \
+  --recommended-glyphs \
+  --name-legacy \
+  --name-languages='*'
+```
 
 ### Crates
 
