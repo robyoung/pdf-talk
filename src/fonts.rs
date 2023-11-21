@@ -2,8 +2,57 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use lopdf::StringFormat;
 use lopdf::{dictionary, Document, Object, ObjectId, Stream};
 use ttf_parser::{Face, GlyphId};
+
+// TODO @robyoung refactor this to make the usage clearer.
+pub trait FontReference {
+    fn object_id(&self) -> ObjectId;
+    fn render_text(&self, text: &str) -> Vec<Object>;
+}
+
+pub struct InternalFontReference {
+    object_id: ObjectId,
+}
+
+impl FontReference for InternalFontReference {
+    fn object_id(&self) -> ObjectId {
+        self.object_id
+    }
+
+    fn render_text(&self, text: &str) -> Vec<Object> {
+        vec![Object::string_literal(text)]
+    }
+}
+
+pub struct ExternalFontReference {
+    object_id: ObjectId,
+    cmap: HashMap<char, u16>,
+}
+
+impl ExternalFontReference {
+    fn new(object_id: ObjectId, cmap: BTreeMap<GlyphId, char>) -> Self {
+        let cmap = cmap.into_iter().map(|(gid, ch)| (ch, gid.0)).collect();
+        Self { object_id, cmap }
+    }
+}
+
+impl FontReference for ExternalFontReference {
+    fn object_id(&self) -> ObjectId {
+        self.object_id
+    }
+
+    fn render_text(&self, text: &str) -> Vec<Object> {
+        vec![Object::String(
+            text.chars()
+                .filter_map(|ch| self.cmap.get(&ch))
+                .flat_map(|x| vec![(x >> 8) as u8, (x & 255) as u8])
+                .collect::<Vec<u8>>(),
+            StringFormat::Hexadecimal,
+        )]
+    }
+}
 
 pub fn type0(font: &[u8]) -> FontType0Builder {
     FontType0Builder {
@@ -16,10 +65,11 @@ pub struct FontType0Builder {
 }
 
 impl FontType0Builder {
-    pub fn add_to_doc(self, doc: &mut Document) -> ObjectId {
+    pub fn add_to_doc(self, doc: &mut Document) -> ExternalFontReference {
         let face = Face::parse(&self.font_data, 0).expect("could not parse font data");
         let glyph_ids = get_glyph_id_to_char_map(&face);
         let cmap_info = get_cmap_info(&face, &glyph_ids);
+        let font_name = "F0";
 
         // add font stream
         let stream_id = doc.add_object(
@@ -29,13 +79,13 @@ impl FontType0Builder {
                 },
                 self.font_data.clone(),
             )
-            .with_compression(false),
+            .with_compression(true),
         );
 
         // add font descriptor object
         let descriptor_id = doc.add_object(dictionary! {
             "Type" => "FontDescriptor",
-            "FontName" => "FontName",
+            "FontName" => font_name,
             "Flags" => 32,
             "FontBBox" => Object::Array(vec![
                 Object::Integer(0),
@@ -48,40 +98,40 @@ impl FontType0Builder {
             "Descent" => face.descender(),
             "CapHeight" => face.ascender(),
             "StemV" => 80,
-            "MissingWidth" => 500,
             "FontFile2" => stream_id,
         });
         // add descendant font object
         let descendant_font_id = doc.add_object(dictionary! {
             "Type" => "Font",
             "Subtype" => "CIDFontType2",
-            "BaseFont" => "FontName",
+            "BaseFont" => font_name,
             "CIDSystemInfo" => dictionary! {
-                "Registry" => "Adobe",
-                "Ordering" => "Identity",
+                "Registry" => Object::String("Adobe".into(), StringFormat::Literal),
+                "Ordering" => Object::String("Identity".into(), StringFormat::Literal),
                 "Supplement" => 0,
             },
             "FontDescriptor" => descriptor_id,
+            "W" => create_width_list(&face),
             "DW" => 1000,
         });
-        let to_unicode_id = create_to_unicode(doc, &cmap_info);
+        let to_unicode_id = create_to_unicode(doc, &cmap_info, font_name);
 
         // add font object
         let font_id = doc.add_object(dictionary! {
             "Type" => "Font",
             "Subtype" => "Type0",
-            "BaseFont" => "FontName",
+            "BaseFont" => font_name,
             "Encoding" => "Identity-H",
             "DescendantFonts" => vec![descendant_font_id.into()],
             "ToUnicode" => to_unicode_id,
         });
-        font_id
+        ExternalFontReference::new(font_id, cmap_info.cmap)
     }
 }
 
-fn create_to_unicode(doc: &mut Document, cmap_info: &CmapInfo) -> ObjectId {
+fn create_to_unicode(doc: &mut Document, cmap_info: &CmapInfo, face_name: &str) -> ObjectId {
     let all_cmap_blocks = create_cmap_blocks(cmap_info);
-    let cid_to_unicode_map = create_cid_unicode_map("FontName".to_owned(), all_cmap_blocks);
+    let cid_to_unicode_map = create_cid_unicode_map(face_name.to_owned(), all_cmap_blocks);
 
     let stream_id = doc.add_object(Stream::new(
         dictionary! {},
@@ -97,7 +147,6 @@ fn get_glyph_id_to_char_map(face: &Face) -> HashMap<u16, char> {
         .cmap
         .expect("no cmap found")
         .subtables
-        .clone()
         .into_iter()
         .filter(|s| s.is_unicode());
     for subtable in subtables {
@@ -115,17 +164,16 @@ fn get_glyph_id_to_char_map(face: &Face) -> HashMap<u16, char> {
 struct CmapInfo {
     max_height: u32,
     total_width: u32,
-    char_dims: BTreeMap<GlyphId, (char, u32, u32)>,
+    cmap: BTreeMap<GlyphId, char>,
 }
 
 fn get_cmap_info(face: &Face, glyph_ids: &HashMap<u16, char>) -> CmapInfo {
     let mut info = CmapInfo {
         max_height: 0,
         total_width: 0,
-        char_dims: BTreeMap::new(),
+        cmap: BTreeMap::new(),
     };
-    info.char_dims
-        .insert(GlyphId(0), (char::from_u32(0).unwrap(), 0, 0));
+    info.cmap.insert(GlyphId(0), char::from_u32(0).unwrap());
     // lifted from printpdf
     let descender = face.descender();
     for (glyph_id, &c) in glyph_ids.iter() {
@@ -139,8 +187,7 @@ fn get_cmap_info(face: &Face, glyph_ids: &HashMap<u16, char>) -> CmapInfo {
             if height > info.max_height {
                 info.max_height = height;
             }
-            info.char_dims
-                .insert(glyph_id, (c, width as u32, height as u32));
+            info.cmap.insert(glyph_id, c);
         }
     }
     info
@@ -173,17 +220,46 @@ fn create_cmap_blocks(cmap_info: &CmapInfo) -> Vec<CmapBlock> {
     let mut current_first_bit = 0_u16;
     let mut all_cmap_blocks = Vec::new();
     let mut current_cmap_block = Vec::new();
-    for (&glyph_id, &(unicode, _, _)) in cmap_info.char_dims.iter() {
-        if (glyph_id.0 >> 8) as u16 != current_first_bit || current_cmap_block.len() >= 100 {
+    for (&glyph_id, &unicode) in cmap_info.cmap.iter() {
+        if glyph_id.0 >> 8 != current_first_bit || current_cmap_block.len() >= 100 {
             all_cmap_blocks.push(current_cmap_block.clone());
             current_cmap_block = Vec::new();
-            current_first_bit = (glyph_id.0 >> 8) as u16;
+            current_first_bit = glyph_id.0 >> 8;
         }
 
         current_cmap_block.push((glyph_id.0 as u32, unicode as u32));
     }
     all_cmap_blocks.push(current_cmap_block);
     all_cmap_blocks
+}
+
+fn create_width_list(face: &Face) -> Vec<Object> {
+    let mut widths = Vec::new();
+    let mut current_low_gid = 0;
+    let mut current_high_gid = 0;
+    let mut current_widths = Vec::new();
+    let scaling_factor = 1000.0 / face.units_per_em() as f32;
+
+    for gid in 0..face.number_of_glyphs() {
+        if let Some(width) = face.glyph_hor_advance(GlyphId(gid)) {
+            let width = width as f32 * scaling_factor;
+            if gid == current_high_gid {
+                current_widths.push(Object::Integer(width as i64));
+                current_high_gid += 1;
+            } else {
+                widths.push(Object::Integer(current_low_gid as i64));
+                widths.push(Object::Array(std::mem::take(&mut current_widths)));
+                current_widths.push(Object::Integer(width as i64));
+                current_low_gid = gid;
+                current_high_gid = gid + 1;
+            }
+        }
+    }
+
+    widths.push(Object::Integer(current_low_gid as i64));
+    widths.push(Object::Array(std::mem::take(&mut current_widths)));
+
+    widths
 }
 
 pub fn type1(base_font: &str) -> FontType1Builder {
@@ -198,12 +274,14 @@ pub struct FontType1Builder {
 }
 
 impl FontType1Builder {
-    pub fn add_to_doc(self, doc: &mut Document) -> ObjectId {
-        doc.add_object(dictionary! {
+    pub fn add_to_doc(self, doc: &mut Document) -> InternalFontReference {
+        let object_id = doc.add_object(dictionary! {
             "Type" => "Font",
             "Subtype" => "Type1",
             "BaseFont" => self.base_font,
-        })
+        });
+
+        InternalFontReference { object_id }
     }
 }
 
@@ -218,7 +296,7 @@ pub struct FontTrueTypeBuilder {
 }
 
 impl FontTrueTypeBuilder {
-    pub fn add_to_doc(self, doc: &mut Document) -> ObjectId {
+    pub fn add_to_doc(self, doc: &mut Document) -> InternalFontReference {
         // add font stream
         let stream_id = doc.add_object(Stream::new(dictionary! {}, self.font_data));
 
@@ -247,6 +325,6 @@ impl FontTrueTypeBuilder {
             "FontDescriptor" => descriptor_id,
 
         });
-        font_id
+        InternalFontReference { object_id: font_id }
     }
 }

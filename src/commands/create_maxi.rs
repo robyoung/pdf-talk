@@ -6,11 +6,14 @@ use printpdf::{Color, PdfDocument, Pt, Rgb};
 use std::{fs::File, io::BufWriter};
 
 use crate::{
-    config::{Config, Driver, FontType},
-    fonts,
+    config::{Config, Driver, FontFile, FontType},
+    fonts::{self, FontReference},
 };
 
-static FIRA_CODE_FONT_PATH: &str = "assets/FiraCodeNerdFontMono-Medium.ttf";
+static FIRA_CODE: FontFile = FontFile {
+    full: "assets/FiraCodeNerdFontMono-Medium.ttf",
+    subset: "assets/FiraCodeNerdFontMono-Medium.subset.ttf",
+};
 // static ROBOTO_FONT_PATH: &str = "assets/RobotoMedium.ttf";
 
 pub fn main(config: Config) {
@@ -28,7 +31,7 @@ fn create_with_printpdf(config: Config) {
         "Layer 1",
     );
     let current_layer = doc.get_page(page1).get_layer(layer1);
-    let font_file = File::open(FIRA_CODE_FONT_PATH).expect("could not open font file");
+    let font_file = File::open(config.font_path(&FIRA_CODE)).expect("could not open font file");
     let font = doc
         .add_external_font(font_file)
         .expect("could not add font to document");
@@ -52,41 +55,37 @@ fn create_with_printpdf(config: Config) {
 }
 
 fn create_with_lopdf(config: Config) {
-    let mut doc = Document::with_version("1.7");
+    let mut doc = Document::with_version("1.3");
 
-    let pages_id = doc.new_object_id();
+    let font_data = std::fs::read(config.font_path(&FIRA_CODE)).expect("could not read font file");
 
-    // let font_path = "documents/Fira-subset.ttf";
-    let font_data = std::fs::read(FIRA_CODE_FONT_PATH).expect("could not read font file");
-
-    let font_id = if let FontType::Type0 = config.font_type {
-        fonts::type0(&font_data).add_to_doc(&mut doc)
+    if let FontType::Type0 = config.font_type {
+        let font_ref = fonts::type0(&font_data).add_to_doc(&mut doc);
+        create_page_with_lopdf(config, doc, &font_ref)
     } else {
-        fonts::true_type(&font_data).add_to_doc(&mut doc)
-    };
+        let font_ref = fonts::true_type(&font_data).add_to_doc(&mut doc);
+        create_page_with_lopdf(config, doc, &font_ref)
+    }
+}
 
+fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn FontReference) {
+    let pages_id = doc.new_object_id();
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
-            "F1" => font_id,
+            "F0" => font_ref.object_id(),
         },
 
     });
     let content = Content {
         operations: vec![
             Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F1".into(), 36.into()]),
+            Operation::new("Tf", vec!["F0".into(), 36.into()]),
             Operation::new("Td", vec![100.into(), 600.into()]),
             Operation::new("TL", vec![48.into()]),
-            Operation::new(
-                "Tj",
-                vec![Object::string_literal("This is a block of text that")],
-            ),
+            Operation::new("Tj", font_ref.render_text("This is a block of text that")),
             Operation::new("T*", vec![]),
-            Operation::new(
-                "Tj",
-                vec![Object::string_literal("should spread across the page.")],
-            ),
-            Operation::new("ER", vec![]),
+            Operation::new("Tj", font_ref.render_text("should spread across the page.")),
+            Operation::new("ET", vec![]),
         ],
     };
     let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
@@ -113,6 +112,6 @@ fn create_with_lopdf(config: Config) {
     doc.trailer.set("Root", catalog_id);
     doc.compress();
     doc.reference_table.cross_reference_type = config.xref_type;
-    let mut file = File::create(config.output).expect("Failed to open file");
+    let mut file = BufWriter::new(File::create(config.output).expect("Failed to open file"));
     doc.save_to(&mut file).expect("Failed to write PDF");
 }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 use lopdf::xref::XrefType;
 use pdf_talk::commands::{create_maxi::main as create_maxi, create_mini::main as create_mini};
-use pdf_talk::config::{Config, FontType, Driver};
+use pdf_talk::config::{Config, Driver, FontType};
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {
@@ -20,6 +20,9 @@ pub(crate) struct Cli {
     #[arg(short, long)]
     pub output: PathBuf,
 
+    #[arg(short, long)]
+    pub subset: bool,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -31,6 +34,7 @@ impl From<Cli> for Config {
             font_type: cli.font_type,
             driver: cli.driver,
             output: cli.output,
+            subset: cli.subset,
         }
     }
 }
@@ -58,7 +62,6 @@ impl From<XrefTypeWrapper> for XrefType {
         }
     }
 }
-
 
 pub fn main() {
     let cli = Cli::parse();

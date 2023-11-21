@@ -1,20 +1,23 @@
-use crate::{config::Config, fonts};
+use crate::{
+    config::Config,
+    fonts::{self, FontReference},
+};
 use lopdf::{
     content::{Content, Operation},
     dictionary, Document, Object, Stream,
 };
-use std::io;
+use std::{fs::File, io::BufWriter};
 
 pub fn main(config: Config) {
     let mut doc = Document::with_version("1.7");
 
     let pages_id = doc.new_object_id();
 
-    let font_id = fonts::type1("Helvetica").add_to_doc(&mut doc);
+    let font_ref = fonts::type1("Helvetica").add_to_doc(&mut doc);
 
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
-            "F1" => font_id,
+            "F1" => font_ref.object_id(),
         },
     });
     let content = Content {
@@ -59,6 +62,6 @@ pub fn main(config: Config) {
     doc.trailer.set("Root", catalog_id);
     doc.compress();
     doc.reference_table.cross_reference_type = config.xref_type;
-    let mut stdout = io::stdout();
-    doc.save_to(&mut stdout).expect("Failed to write PDF");
+    let mut file = BufWriter::new(File::create(config.output).expect("Failed to open file"));
+    doc.save_to(&mut file).expect("Failed to write PDF");
 }
