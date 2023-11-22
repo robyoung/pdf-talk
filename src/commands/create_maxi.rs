@@ -1,6 +1,6 @@
 use lopdf::{
     content::{Content, Operation},
-    dictionary, Document, Object, Stream,
+    dictionary, Document, Object, ObjectId, Stream,
 };
 use printpdf::{Color, PdfDocument, Pt, Rgb};
 use std::{fs::File, io::BufWriter};
@@ -76,29 +76,17 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
         },
 
     });
-    let content = Content {
-        operations: vec![
-            Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F0".into(), 36.into()]),
-            Operation::new("Td", vec![100.into(), 600.into()]),
-            Operation::new("TL", vec![48.into()]),
-            Operation::new("Tj", font_ref.render_text("This is a block of text that")),
-            Operation::new("T*", vec![]),
-            Operation::new("Tj", font_ref.render_text("should spread across the page.")),
-            Operation::new("ET", vec![]),
-        ],
-    };
-    let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
-    let page_id = doc.add_object(dictionary! {
-        "Type" => "Page",
-        "Parent" => pages_id,
-        "Contents" => content_id,
-    });
+
+    let kids = vec![
+        create_page_one(&mut doc, pages_id, font_ref).into(),
+        create_page_two(&mut doc, pages_id, font_ref).into(),
+    ];
+    let page_count = kids.len();
 
     let pages = dictionary! {
         "Type" => "Pages",
-        "Kids" => vec![page_id.into()],
-        "Count" => 1,
+        "Kids" => kids,
+        "Count" => page_count as u32,
         "Resources" => resources_id,
         "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
     };
@@ -114,4 +102,52 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
     doc.reference_table.cross_reference_type = config.xref_type;
     let mut file = BufWriter::new(File::create(config.output).expect("Failed to open file"));
     doc.save_to(&mut file).expect("Failed to write PDF");
+}
+
+fn create_page_one(
+    doc: &mut Document,
+    pages_id: ObjectId,
+    font_ref: &dyn FontReference,
+) -> ObjectId {
+    let content = Content {
+        operations: vec![
+            Operation::new("BT", vec![]),
+            Operation::new("Tf", vec!["F0".into(), 36.into()]),
+            Operation::new("Td", vec![100.into(), 600.into()]),
+            Operation::new("TL", vec![48.into()]),
+            Operation::new("Tj", font_ref.render_text("This is a block of text that")),
+            Operation::new("T*", vec![]),
+            Operation::new("Tj", font_ref.render_text("should spread across the page.")),
+            Operation::new("ET", vec![]),
+        ],
+    };
+    let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+    doc.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "Contents" => content_id,
+    })
+}
+
+fn create_page_two(
+    doc: &mut Document,
+    pages_id: ObjectId,
+    font_ref: &dyn FontReference,
+) -> ObjectId {
+    let content = Content {
+        operations: vec![
+            Operation::new("BT", vec![]),
+            Operation::new("Tf", vec!["F0".into(), 36.into()]),
+            Operation::new("Td", vec![100.into(), 600.into()]),
+            Operation::new("TL", vec![48.into()]),
+            Operation::new("Tj", font_ref.render_text("Circle say YAY!")),
+            Operation::new("ET", vec![]),
+        ],
+    };
+    let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+    doc.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "Contents" => content_id,
+    })
 }
