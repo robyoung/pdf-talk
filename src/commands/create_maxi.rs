@@ -26,8 +26,8 @@ pub fn main(config: Config) {
 fn create_with_printpdf(config: Config) {
     let (doc, page1, layer1) = PdfDocument::new(
         "PDF_Document_title",
-        Pt(595.0).into(),
-        Pt(842.0).into(),
+        Pt(600.0).into(),
+        Pt(800.0).into(),
         "Layer 1",
     );
     let current_layer = doc.get_page(page1).get_layer(layer1);
@@ -88,7 +88,7 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
         "Kids" => kids,
         "Count" => page_count as u32,
         "Resources" => resources_id,
-        "MediaBox" => vec![0.into(), 0.into(), 595.into(), 842.into()],
+        "MediaBox" => vec![0.into(), 0.into(), 600.into(), 600.into()],
     };
     doc.objects.insert(pages_id, Object::Dictionary(pages));
 
@@ -112,9 +112,9 @@ fn create_page_one(
     let content = Content {
         operations: vec![
             Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F0".into(), 36.into()]),
-            Operation::new("Td", vec![100.into(), 600.into()]),
-            Operation::new("TL", vec![48.into()]),
+            Operation::new("Tf", vec!["F0".into(), 28.into()]),
+            Operation::new("Td", vec![50.into(), 300.into()]),
+            Operation::new("TL", vec![36.into()]),
             Operation::new("Tj", font_ref.render_text("This is a block of text that")),
             Operation::new("T*", vec![]),
             Operation::new("Tj", font_ref.render_text("should spread across the page.")),
@@ -135,14 +135,18 @@ fn create_page_two(
     font_ref: &dyn FontReference,
 ) -> ObjectId {
     let content = Content {
-        operations: vec![
-            Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F0".into(), 36.into()]),
-            Operation::new("Td", vec![100.into(), 600.into()]),
-            Operation::new("TL", vec![48.into()]),
-            Operation::new("Tj", font_ref.render_text("Circle say YAY!")),
-            Operation::new("ET", vec![]),
-        ],
+        operations: [
+            vec![
+                Operation::new("BT", vec![]),
+                Operation::new("Tf", vec!["F0".into(), 36.into()]),
+                Operation::new("Td", vec![120.into(), 500.into()]),
+                Operation::new("TL", vec![48.into()]),
+                Operation::new("Tj", font_ref.render_text("Circle say YAY!")),
+                Operation::new("ET", vec![]),
+            ],
+            make_circle(),
+        ]
+        .concat(),
     };
     let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
     doc.add_object(dictionary! {
@@ -150,4 +154,63 @@ fn create_page_two(
         "Parent" => pages_id,
         "Contents" => content_id,
     })
+}
+
+fn make_circle() -> Vec<Operation> {
+    let radius = 100.0;
+    let center = (300.0, 300.0);
+    let c = 4.0 / 3.0 * (f64::sqrt(2.0) - 1.0);
+
+    vec![
+        Operation::new("q", vec![]),
+        Operation::new("w", vec![3.into()]),
+        Operation::new("RG", vec![1.into(), 0.into(), 0.into()]),
+        Operation::new("m", vec![center.0.into(), (center.1 - radius).into()]),
+        Operation::new(
+            "c",
+            vec![
+                (center.0 + radius * c).into(),
+                (center.1 - radius).into(),
+                (center.0 + radius).into(),
+                (center.1 - radius * c).into(),
+                (center.0 + radius).into(),
+                center.1.into(),
+            ],
+        ),
+        Operation::new(
+            "c",
+            vec![
+                (center.0 + radius).into(),
+                (center.1 + radius * c).into(),
+                (center.0 + radius * c).into(),
+                (center.1 + radius).into(),
+                center.0.into(),
+                (center.1 + radius).into(),
+            ],
+        ),
+        Operation::new(
+            "c",
+            vec![
+                (center.0 - radius * c).into(),
+                (center.1 + radius).into(),
+                (center.0 - radius).into(),
+                (center.1 + radius * c).into(),
+                (center.0 - radius).into(),
+                center.1.into(),
+            ],
+        ),
+        Operation::new(
+            "c",
+            vec![
+                (center.0 - radius).into(),
+                (center.1 - radius * c).into(),
+                (center.0 - radius * c).into(),
+                (center.1 - radius).into(),
+                center.0.into(),
+                (center.1 - radius).into(),
+            ],
+        ),
+        Operation::new("S", vec![]),
+        Operation::new("Q", vec![]),
+    ]
 }
