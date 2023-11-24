@@ -121,7 +121,8 @@ fn create_page_one(
             Operation::new("ET", vec![]),
         ],
     };
-    let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+    let content_id = doc
+        .add_object(Stream::new(dictionary! {}, content.encode().unwrap()).with_compression(false));
     doc.add_object(dictionary! {
         "Type" => "Page",
         "Parent" => pages_id,
@@ -134,21 +135,24 @@ fn create_page_two(
     pages_id: ObjectId,
     font_ref: &dyn FontReference,
 ) -> ObjectId {
+    let circle_centre = (300.0, 300.0);
+    let circle_radius = 100.0;
     let content = Content {
         operations: [
             vec![
                 Operation::new("BT", vec![]),
                 Operation::new("Tf", vec!["F0".into(), 36.into()]),
-                Operation::new("Td", vec![120.into(), 500.into()]),
+                Operation::new("Td", vec![140.into(), 500.into()]),
                 Operation::new("TL", vec![48.into()]),
                 Operation::new("Tj", font_ref.render_text("Circle say YAY!")),
                 Operation::new("ET", vec![]),
             ],
-            make_circle(),
+            make_circle_go_yay(circle_radius, circle_centre),
         ]
         .concat(),
     };
-    let content_id = doc.add_object(Stream::new(dictionary! {}, content.encode().unwrap()));
+    let content_id = doc
+        .add_object(Stream::new(dictionary! {}, content.encode().unwrap()).with_compression(false));
     doc.add_object(dictionary! {
         "Type" => "Page",
         "Parent" => pages_id,
@@ -156,16 +160,16 @@ fn create_page_two(
     })
 }
 
-fn make_circle() -> Vec<Operation> {
-    let radius = 100.0;
-    let center = (300.0, 300.0);
+fn make_circle_go_yay(radius: f64, center: (f64, f64)) -> Vec<Operation> {
     let c = 4.0 / 3.0 * (f64::sqrt(2.0) - 1.0);
+    let yay_offset = radius / 2.0;
 
     vec![
         Operation::new("q", vec![]),
         Operation::new("w", vec![3.into()]),
-        Operation::new("RG", vec![1.into(), 0.into(), 0.into()]),
+        Operation::new("RG", vec![0.into(), 1.into(), 0.into()]),
         Operation::new("m", vec![center.0.into(), (center.1 - radius).into()]),
+        // Make the circle
         Operation::new(
             "c",
             vec![
@@ -208,6 +212,29 @@ fn make_circle() -> Vec<Operation> {
                 (center.1 - radius).into(),
                 center.0.into(),
                 (center.1 - radius).into(),
+            ],
+        ),
+        // Make the YAY
+        Operation::new(
+            "m",
+            vec![(center.0 - radius - yay_offset).into(), center.1.into()],
+        ),
+        Operation::new(
+            "l",
+            vec![
+                (center.0 - radius - yay_offset * 2.0).into(),
+                (center.1 + radius).into(),
+            ],
+        ),
+        Operation::new(
+            "m",
+            vec![(center.0 + radius + yay_offset).into(), center.1.into()],
+        ),
+        Operation::new(
+            "l",
+            vec![
+                (center.0 + radius + yay_offset * 2.0).into(),
+                (center.1 + radius).into(),
             ],
         ),
         Operation::new("S", vec![]),
