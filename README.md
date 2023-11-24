@@ -2,9 +2,9 @@
 
 ## Tasks
 
-- [ ] Use CID font in maxi PDF
 - [ ] Read a file with lopdf. Specifically see if ObjStm is unpacked.
 - [ ] Write out overall structure
+
 
 ## Reference
 - [Chat GPT](https://chat.openai.com/c/d897ab81-1e3e-48da-822f-5a16321df8f7)
@@ -149,15 +149,18 @@ pyftsubset input-font.ttf \
 
 ### The files
 
-- One minimal PDF with one page, containing no text and minimal metadata.
+- One minimal PDF with one page, containing some text and minimal metadata.
+- One maximal PDF with multiple pages, text with different fonts, vector graphics and images.
 - A moderate sized Benchmarking report.
 
-### Structure of a PDF
+### File structure
 
+(See: Spec 7.5 File Structure)
 - Header `%PDF-1.7`
 - Body
-    - List of objects in the PDF.
+    - List of indirect objects (Spec 7.3.10) in the PDF.
     - Each object has an ID and may reference other objects by their ID.
+    - Object stream (stream) stream of non-stream objects, useful for compression
     - Important objects
         - `Catalog` (dictionary) the root of the object hierarchy.
         - `Info` (dictionary) metadata about the file such as author, title, subject etc.
@@ -171,3 +174,14 @@ pyftsubset input-font.ttf \
     - `Info` points to the information dictionary.
     - `ID` two unique identifiers for the file. Mostly relevant for encryption.
 - EOF marker `%%EOF`
+
+
+### Document structure
+
+- Catalog (dictionary) (Spec 7.7.2) the root of the object hierarchy, points to:
+    - Pages (dictionary) (Spec 7.7.3.2) a node in the page tree. Often just the root page node.
+        - Resources (dictionary) (Spec 7.8.3) a dictionary of resources that may be used in a content stream. For example `<</Font<</F1 2 0 R>>>>` maps the name `F1` to an indirect object reference `2 0`
+        - Page (dictionary) (Spec 7.7.3.3) a leaf in the page tree.
+            - Content Stream (stream or array) (Spec 7.8.2)
+
+
