@@ -166,7 +166,7 @@ fn make_circle_go_yay(radius: f64, center: (f64, f64)) -> Vec<Operation> {
 
     vec![
         Operation::new("q", vec![]),
-        Operation::new("w", vec![3.into()]),
+        Operation::new("w", vec![5.into()]),
         Operation::new("RG", vec![0.into(), 1.into(), 0.into()]),
         Operation::new("m", vec![center.0.into(), (center.1 - radius).into()]),
         // Make the circle
