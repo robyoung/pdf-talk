@@ -1,12 +1,11 @@
 use lopdf::{
     content::{Content, Operation},
-    dictionary, Document, Object, ObjectId, Stream,
+    dictionary, xobject, Document, Object, ObjectId, Stream,
 };
-use printpdf::{Color, PdfDocument, Pt, Rgb};
 use std::{fs::File, io::BufWriter};
 
 use crate::{
-    config::{Config, Driver, FontFile, FontType},
+    config::{CreateConfig, FontFile, FontType},
     fonts::{self, FontReference},
 };
 
@@ -16,45 +15,11 @@ static FIRA_CODE: FontFile = FontFile {
 };
 // static ROBOTO_FONT_PATH: &str = "assets/RobotoMedium.ttf";
 
-pub fn main(config: Config) {
-    match config.driver {
-        Driver::Lopdf => create_with_lopdf(config),
-        Driver::Printpdf => create_with_printpdf(config),
-    }
+pub fn main(config: CreateConfig) {
+    return create_with_lopdf(config);
 }
 
-fn create_with_printpdf(config: Config) {
-    let (doc, page1, layer1) = PdfDocument::new(
-        "PDF_Document_title",
-        Pt(600.0).into(),
-        Pt(800.0).into(),
-        "Layer 1",
-    );
-    let current_layer = doc.get_page(page1).get_layer(layer1);
-    let font_file = File::open(config.font_path(&FIRA_CODE)).expect("could not open font file");
-    let font = doc
-        .add_external_font(font_file)
-        .expect("could not add font to document");
-
-    let black = Rgb::new(0.0, 0.0, 0.0, None);
-    current_layer.set_fill_color(Color::Rgb(black.clone()));
-    current_layer.set_outline_color(Color::Rgb(black));
-
-    current_layer.begin_text_section();
-    current_layer.set_font(&font, 36.0);
-    current_layer.set_text_cursor(Pt(100.0).into(), Pt(600.0).into());
-    current_layer.set_line_height(48.0);
-    current_layer.write_text("This is a block of text that", &font);
-    current_layer.add_line_break();
-    current_layer.write_text("should spread across the page.", &font);
-    current_layer.end_text_section();
-
-    let file = File::create(config.output).expect("Failed to open file");
-    doc.save(&mut BufWriter::new(file))
-        .expect("could not write PDF");
-}
-
-fn create_with_lopdf(config: Config) {
+fn create_with_lopdf(config: CreateConfig) {
     let mut doc = Document::with_version("1.3");
 
     let font_data = std::fs::read(config.font_path(&FIRA_CODE)).expect("could not read font file");
@@ -68,7 +33,8 @@ fn create_with_lopdf(config: Config) {
     }
 }
 
-fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn FontReference) {
+fn create_page_with_lopdf(config: CreateConfig, mut doc: Document, font_ref: &dyn FontReference) {
+    println!("{:?}", config);
     let pages_id = doc.new_object_id();
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
@@ -78,8 +44,10 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
     });
 
     let kids = vec![
-        create_page_one(&mut doc, pages_id, font_ref).into(),
-        create_page_two(&mut doc, pages_id, font_ref).into(),
+        create_page_one(&mut doc, &config, pages_id, font_ref).into(),
+        create_page_two(&mut doc, &config, pages_id, font_ref).into(),
+        create_page_three(&mut doc, &config, pages_id, font_ref).into(),
+        create_page_three_manual(&mut doc, &config, pages_id, font_ref).into(),
     ];
     let page_count = kids.len();
 
@@ -98,7 +66,9 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
     });
 
     doc.trailer.set("Root", catalog_id);
-    doc.compress();
+    if config.compress {
+        doc.compress();
+    }
     doc.reference_table.cross_reference_type = config.xref_type;
     let mut file = BufWriter::new(File::create(config.output).expect("Failed to open file"));
     doc.save_to(&mut file).expect("Failed to write PDF");
@@ -106,6 +76,7 @@ fn create_page_with_lopdf(config: Config, mut doc: Document, font_ref: &dyn Font
 
 fn create_page_one(
     doc: &mut Document,
+    config: &CreateConfig,
     pages_id: ObjectId,
     font_ref: &dyn FontReference,
 ) -> ObjectId {
@@ -121,8 +92,10 @@ fn create_page_one(
             Operation::new("ET", vec![]),
         ],
     };
-    let content_id = doc
-        .add_object(Stream::new(dictionary! {}, content.encode().unwrap()).with_compression(false));
+    let content_id = doc.add_object(
+        Stream::new(dictionary! {}, content.encode().unwrap())
+            .with_compression(config.compress_content),
+    );
     doc.add_object(dictionary! {
         "Type" => "Page",
         "Parent" => pages_id,
@@ -132,6 +105,7 @@ fn create_page_one(
 
 fn create_page_two(
     doc: &mut Document,
+    config: &CreateConfig,
     pages_id: ObjectId,
     font_ref: &dyn FontReference,
 ) -> ObjectId {
@@ -151,8 +125,10 @@ fn create_page_two(
         ]
         .concat(),
     };
-    let content_id = doc
-        .add_object(Stream::new(dictionary! {}, content.encode().unwrap()).with_compression(false));
+    let content_id = doc.add_object(
+        Stream::new(dictionary! {}, content.encode().unwrap())
+            .with_compression(config.compress_content),
+    );
     doc.add_object(dictionary! {
         "Type" => "Page",
         "Parent" => pages_id,
@@ -240,4 +216,86 @@ fn make_circle_go_yay(radius: f64, center: (f64, f64)) -> Vec<Operation> {
         Operation::new("S", vec![]),
         Operation::new("Q", vec![]),
     ]
+}
+
+fn create_page_three(
+    doc: &mut Document,
+    config: &CreateConfig,
+    pages_id: ObjectId,
+    font_ref: &dyn FontReference,
+) -> ObjectId {
+    let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
+    let content_id = doc.add_object(
+        Stream::new(
+            dictionary! {},
+            Content {
+                operations: vec![
+                    Operation::new("BT", vec![]),
+                    Operation::new("Tf", vec!["F0".into(), 28.into()]),
+                    Operation::new("Td", vec![50.into(), 550.into()]),
+                    Operation::new("TL", vec![36.into()]),
+                    Operation::new("Tj", font_ref.render_text("Horsey say NEIGH!")),
+                    Operation::new("ET", vec![]),
+                ],
+            }
+            .encode()
+            .unwrap(),
+        )
+        .with_compression(config.compress_content),
+    );
+    let page_id = doc.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "Contents" => content_id,
+    });
+    doc.insert_image(page_id, image_stream, (100.0, 100.0), (400.0, 400.0))
+        .unwrap();
+
+    page_id
+}
+
+fn create_page_three_manual(
+    doc: &mut Document,
+    config: &CreateConfig,
+    pages_id: ObjectId,
+    font_ref: &dyn FontReference,
+) -> ObjectId {
+    let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
+    let image_id = doc.add_object(image_stream);
+    let content_id = doc.add_object(
+        Stream::new(
+            dictionary! {},
+            Content {
+                operations: vec![
+                    Operation::new("q", vec![]),
+                    Operation::new(
+                        "cm",
+                        vec![
+                            0.5.into(),
+                            0.into(),
+                            0.into(),
+                            0.5.into(),
+                            100.into(),
+                            100.into(),
+                        ],
+                    ),
+                    Operation::new("Do", vec!["Im1".into()]),
+                    Operation::new("Q", vec![]),
+                ],
+            }
+            .encode()
+            .unwrap(),
+        )
+        .with_compression(config.compress_content),
+    );
+    doc.add_object(dictionary! {
+        "Type" => "Page",
+        "Parent" => pages_id,
+        "Contents" => content_id,
+        "Resources" => dictionary!{
+            "XObject" => dictionary!{
+                "Im1" => image_id,
+            },
+        },
+    })
 }

@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::CreateConfig,
     fonts::{self, FontReference},
 };
 use lopdf::{
@@ -8,7 +8,7 @@ use lopdf::{
 };
 use std::{fs::File, io::BufWriter};
 
-pub fn main(config: Config) {
+pub fn main(config: CreateConfig) {
     let mut doc = Document::with_version("1.7");
 
     let pages_id = doc.new_object_id();

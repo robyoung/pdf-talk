@@ -10,25 +10,22 @@ pub enum FontType {
     Ttf,
 }
 
-#[derive(Debug, Copy, Clone, ValueEnum)]
-pub enum Driver {
-    Lopdf,
-    Printpdf,
-}
 pub struct FontFile {
     pub full: &'static str,
     pub subset: &'static str,
 }
 
-pub struct Config {
+#[derive(Debug)]
+pub struct CreateConfig {
     pub xref_type: XrefType,
     pub font_type: FontType,
-    pub output: PathBuf,
-    pub driver: Driver,
+    pub compress: bool,
+    pub compress_content: bool,
     pub subset: bool,
+    pub output: PathBuf,
 }
 
-impl Config {
+impl CreateConfig {
     pub fn font_path(&self, font_file: &FontFile) -> &str {
         if self.subset {
             font_file.subset
