@@ -262,6 +262,7 @@ fn create_page_three_manual(
 ) -> ObjectId {
     let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
     let image_id = doc.add_object(image_stream);
+    let m = 400;
     let content_id = doc.add_object(
         Stream::new(
             dictionary! {},
@@ -271,12 +272,12 @@ fn create_page_three_manual(
                     Operation::new(
                         "cm",
                         vec![
-                            0.5.into(),
-                            0.into(),
-                            0.into(),
-                            0.5.into(),
-                            100.into(),
-                            100.into(),
+                            10.into(),
+                            (300).into(),
+                            (-300).into(),
+                            10.into(),
+                            400.into(),
+                            50.into(),
                         ],
                     ),
                     Operation::new("Do", vec!["Im1".into()]),
