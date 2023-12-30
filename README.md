@@ -2,9 +2,12 @@
 
 ## Tasks
 
-- [ ] Read a file with lopdf. Specifically see if ObjStm is unpacked.
-- [ ] Write out overall structure
-
+- [ ] Create command to build slide deck
+- [ ] Create slide deck page of correct dimensions
+- [ ] Add text with T&T font (Georgia) in dark blue
+- [ ] Add T&T logo
+- [ ] Add light blue line
+- [ ] Make reusable template with title, underline, body
 
 ## Reference
 - [Chat GPT](https://chat.openai.com/c/d897ab81-1e3e-48da-822f-5a16321df8f7)
