@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use lopdf::xref::XrefType;
-use pdf_talk::commands::{create_maxi::main as create_maxi, create_mini::main as create_mini};
+use pdf_talk::commands::{
+    create_deck::main as create_deck, create_maxi::main as create_maxi,
+    create_mini::main as create_mini,
+};
 use pdf_talk::config::{CreateConfig, FontType};
 
 #[derive(Parser, Debug)]
@@ -47,7 +50,9 @@ struct CreateOutput {
 impl From<CreateArgs> for CreateConfig {
     fn from(args: CreateArgs) -> CreateConfig {
         let output = match args.command {
-            CreateCommand::Mini(output) | CreateCommand::Maxi(output) => output.output,
+            CreateCommand::Mini(output)
+            | CreateCommand::Maxi(output)
+            | CreateCommand::Deck(output) => output.output,
         };
         CreateConfig {
             xref_type: args.xref_type.into(),
@@ -73,6 +78,9 @@ enum CreateCommand {
 
     /// Create a PDF document that showcases various features.
     Maxi(CreateOutput),
+
+    /// Create the slide deck for the PDF talk.
+    Deck(CreateOutput),
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum)]
@@ -97,6 +105,7 @@ pub fn main() {
         Command::Create(create_args) => match create_args.command {
             CreateCommand::Mini(_) => create_mini(create_args.into()),
             CreateCommand::Maxi(_) => create_maxi(create_args.into()),
+            CreateCommand::Deck(_) => create_deck(create_args.into()),
         },
     }
 }
