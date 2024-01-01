@@ -1,12 +1,12 @@
 use crate::{
     config::CreateConfig,
+    document::DocumentAdditions,
     fonts::{self, FontReference},
 };
 use lopdf::{
     content::{Content, Operation},
     dictionary, Document, Object, Stream,
 };
-use std::{fs::File, io::BufWriter};
 
 pub fn main(config: CreateConfig) {
     let mut doc = Document::with_version("1.7");
@@ -54,14 +54,6 @@ pub fn main(config: CreateConfig) {
     };
     doc.objects.insert(pages_id, Object::Dictionary(pages));
 
-    let catalog_id = doc.add_object(dictionary! {
-        "Type" => "Catalog",
-        "Pages" => pages_id,
-    });
-
-    doc.trailer.set("Root", catalog_id);
-    doc.compress();
-    doc.reference_table.cross_reference_type = config.xref_type;
-    let mut file = BufWriter::new(File::create(config.output).expect("Failed to open file"));
-    doc.save_to(&mut file).expect("Failed to write PDF");
+    doc.add_catalog(pages_id);
+    config.apply_and_save(&mut doc);
 }

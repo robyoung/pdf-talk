@@ -26,11 +26,31 @@ pub struct CreateConfig {
 }
 
 impl CreateConfig {
-    pub fn font_path(&self, font_file: &FontFile) -> &str {
+    pub(crate) fn font_path(&self, font_file: &FontFile) -> &str {
         if self.subset {
             font_file.subset
         } else {
             font_file.full
         }
+    }
+
+    pub(crate) fn compress(&self, doc: &mut lopdf::Document) {
+        if self.compress {
+            doc.compress();
+        }
+    }
+
+    pub(crate) fn apply_xref_table(&self, doc: &mut lopdf::Document) {
+        doc.reference_table.cross_reference_type = self.xref_type;
+    }
+
+    pub(crate) fn save(&self, doc: &mut lopdf::Document) {
+        doc.save(&self.output).expect("Failed to save PDF");
+    }
+
+    pub(crate) fn apply_and_save(&self, doc: &mut lopdf::Document) {
+        self.compress(doc);
+        self.apply_xref_table(doc);
+        self.save(doc);
     }
 }
