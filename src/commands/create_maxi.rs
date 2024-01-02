@@ -22,14 +22,14 @@ pub fn main(config: CreateConfig) {
 
     if let FontType::Type0 = config.font_type {
         let font_ref = fonts::type0(&font_data).add_to_doc(&mut doc);
-        create_page(config, doc, &font_ref)
+        create_pages(config, doc, &font_ref)
     } else {
         let font_ref = fonts::true_type(&font_data).add_to_doc(&mut doc);
-        create_page(config, doc, &font_ref)
+        create_pages(config, doc, &font_ref)
     }
 }
 
-fn create_page(config: CreateConfig, mut doc: Document, font_ref: &dyn FontReference) {
+fn create_pages(config: CreateConfig, mut doc: Document, font_ref: &dyn FontReference) {
     println!("{:?}", config);
     let pages_id = doc.new_object_id();
     let resources_id = doc.add_object(dictionary! {
