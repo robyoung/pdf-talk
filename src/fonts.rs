@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use lopdf::Dictionary;
 use lopdf::StringFormat;
 use lopdf::{dictionary, Document, Object, ObjectId, Stream};
-use ttf_parser::{Face, GlyphId};
+use owned_ttf_parser::{AsFaceRef, Face, GlyphId, OwnedFace};
 
 // TODO @robyoung refactor this to make the usage clearer.
 pub trait FontReference {
@@ -12,6 +13,7 @@ pub trait FontReference {
     fn render_text(&self, text: &str) -> Vec<Object>;
 }
 
+#[derive(Default, Clone)]
 pub struct InternalFontReference {
     object_id: ObjectId,
 }
@@ -28,13 +30,15 @@ impl FontReference for InternalFontReference {
 
 pub struct ExternalFontReference {
     object_id: ObjectId,
-    cmap: HashMap<char, u16>,
+    face: OwnedFace,
 }
 
 impl ExternalFontReference {
-    fn new(object_id: ObjectId, cmap: BTreeMap<GlyphId, char>) -> Self {
-        let cmap = cmap.into_iter().map(|(gid, ch)| (ch, gid.0)).collect();
-        Self { object_id, cmap }
+    fn new(object_id: ObjectId, font_data: Vec<u8>) -> Self {
+        Self {
+            object_id,
+            face: OwnedFace::from_vec(font_data, 0).unwrap(),
+        }
     }
 }
 
@@ -46,7 +50,7 @@ impl FontReference for ExternalFontReference {
     fn render_text(&self, text: &str) -> Vec<Object> {
         vec![Object::String(
             text.chars()
-                .filter_map(|ch| self.cmap.get(&ch))
+                .filter_map(|ch| self.face.as_face_ref().glyph_index(ch).map(|gid| gid.0))
                 .flat_map(|x| vec![(x >> 8) as u8, (x & 255) as u8])
                 .collect::<Vec<u8>>(),
             StringFormat::Hexadecimal,
@@ -55,9 +59,7 @@ impl FontReference for ExternalFontReference {
 }
 
 pub fn type0(font: &[u8]) -> FontType0Builder {
-    FontType0Builder {
-        font_data: font.to_vec(),
-    }
+    FontType0Builder::new(font)
 }
 
 pub struct FontType0Builder {
@@ -65,6 +67,16 @@ pub struct FontType0Builder {
 }
 
 impl FontType0Builder {
+    pub fn new(font: &[u8]) -> Self {
+        Self {
+            font_data: font.to_vec(),
+        }
+    }
+
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        Ok(Self::new(&std::fs::read(path)?))
+    }
+
     pub fn add_to_doc(self, doc: &mut Document) -> ExternalFontReference {
         let face = Face::parse(&self.font_data, 0).expect("could not parse font data");
         let glyph_ids = get_glyph_id_to_char_map(&face);
@@ -125,7 +137,7 @@ impl FontType0Builder {
             "DescendantFonts" => vec![descendant_font_id.into()],
             "ToUnicode" => to_unicode_id,
         });
-        ExternalFontReference::new(font_id, cmap_info.cmap)
+        ExternalFontReference::new(font_id, self.font_data)
     }
 }
 
@@ -242,14 +254,14 @@ fn create_width_list(face: &Face) -> Vec<Object> {
 
     for gid in 0..face.number_of_glyphs() {
         if let Some(width) = face.glyph_hor_advance(GlyphId(gid)) {
-            let width = width as f32 * scaling_factor;
+            let width = (width as f32 * scaling_factor) as i64;
             if gid == current_high_gid {
-                current_widths.push(Object::Integer(width as i64));
+                current_widths.push(Object::Integer(width));
                 current_high_gid += 1;
             } else {
                 widths.push(Object::Integer(current_low_gid as i64));
                 widths.push(Object::Array(std::mem::take(&mut current_widths)));
-                current_widths.push(Object::Integer(width as i64));
+                current_widths.push(Object::Integer(width));
                 current_low_gid = gid;
                 current_high_gid = gid + 1;
             }
@@ -297,21 +309,35 @@ pub struct FontTrueTypeBuilder {
 
 impl FontTrueTypeBuilder {
     pub fn add_to_doc(self, doc: &mut Document) -> InternalFontReference {
+        let face = Face::parse(&self.font_data, 0).expect("could not parse font data");
+        let glyph_ids = get_glyph_id_to_char_map(&face);
+        let cmap_info = get_cmap_info(&face, &glyph_ids);
+
         // add font stream
-        let stream_id = doc.add_object(Stream::new(dictionary! {}, self.font_data));
+        let stream_id = doc.add_object(Stream::new(
+            dictionary! {
+                "Length1" => self.font_data.len() as u32,
+            },
+            self.font_data.clone(),
+        ));
 
         // add font descriptor object
         let descriptor_id = doc.add_object(dictionary! {
             "Type" => "FontDescriptor",
             "FontName" => "FontName",
             "Flags" => 32,
-            "FontBBox" => Object::Array(vec![Object::Integer(0), Object::Integer(-200), Object::Integer(1000), Object::Integer(800),]),
+            "FontBBox" => Object::Array(vec![
+                Object::Integer(0),
+                Object::Integer(cmap_info.max_height as i64),
+                Object::Integer(cmap_info.total_width as i64),
+                Object::Integer(cmap_info.max_height as i64),
+            ]),
             "ItalicAngle" => 0,
-            "Ascent" => 800,
-            "Descent" => -200,
-            "CapHeight" => 700,
+            "Ascent" => face.ascender(),
+            "Descent" => face.descender(),
+            "CapHeight" => face.ascender(),
             "StemV" => 80,
-            "MissingWidth" => 500,
+            "MissingWidth" => 1000,
             "FontFile2" => stream_id,
         });
         // add font object
@@ -326,5 +352,65 @@ impl FontTrueTypeBuilder {
 
         });
         InternalFontReference { object_id: font_id }
+    }
+}
+
+/// A mapping of key to [FontReference]
+///
+/// This is to build the font dictionary and to look up the correct `FontReference` to use
+/// when encoding text.
+#[derive(Default)]
+pub(crate) struct FontMap {
+    fonts: HashMap<String, Box<dyn FontReference>>,
+}
+
+impl FontMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[allow(dead_code)]
+    pub fn with_one<T: FontReference + 'static>(key: &str, font: T) -> Self {
+        let mut this = Self::new();
+        this.insert(key, font);
+        this
+    }
+
+    pub fn insert<T: FontReference + 'static>(&mut self, key: &str, value: T) {
+        if !key.chars().all(|c| c.is_ascii_alphanumeric()) {
+            panic!(
+                "Font reference key must be ASCII alpha numeric but was {}",
+                key
+            );
+        }
+        self.fonts.insert(key.to_owned(), Box::new(value));
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.fonts.contains_key(key)
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Box<dyn FontReference>> {
+        self.fonts.get(key)
+    }
+
+    pub fn as_dictionary(&self) -> Dictionary {
+        let mut dict = Dictionary::new();
+        for (key, value) in self.fonts.iter() {
+            dict.set(key.as_str(), value.object_id());
+        }
+        dict
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn add_to_font_map_with_invalid_key() {
+        let mut font_map = FontMap::new();
+        font_map.insert("this is invalid", InternalFontReference::default());
     }
 }
