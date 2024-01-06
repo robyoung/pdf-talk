@@ -34,11 +34,8 @@ pub struct ExternalFontReference {
 }
 
 impl ExternalFontReference {
-    fn new(object_id: ObjectId, font_data: Vec<u8>) -> Self {
-        Self {
-            object_id,
-            face: OwnedFace::from_vec(font_data, 0).unwrap(),
-        }
+    fn new(object_id: ObjectId, face: OwnedFace) -> Self {
+        Self { object_id, face }
     }
 }
 
@@ -78,18 +75,18 @@ impl FontType0Builder {
     }
 
     pub fn add_to_doc(self, doc: &mut Document) -> ExternalFontReference {
-        let face = Face::parse(&self.font_data, 0).expect("could not parse font data");
-        let glyph_ids = get_glyph_id_to_char_map(&face);
-        let cmap_info = get_cmap_info(&face, &glyph_ids);
+        let face = OwnedFace::from_vec(self.font_data, 0).expect("could not parse font data");
+        let glyph_ids = get_glyph_id_to_char_map(face.as_face_ref());
+        let cmap_info = get_cmap_info(face.as_face_ref(), &glyph_ids);
         let font_name = "F0";
 
         // add font stream
         let stream_id = doc.add_object(
             Stream::new(
                 dictionary! {
-                    "Length1" => self.font_data.len() as u32,
+                    "Length1" => face.as_slice().len() as u32,
                 },
-                self.font_data.clone(),
+                face.as_slice().to_vec(),
             )
             .with_compression(true),
         );
@@ -106,9 +103,9 @@ impl FontType0Builder {
                 Object::Integer(cmap_info.max_height as i64), //
             ]),
             "ItalicAngle" => 0,
-            "Ascent" => face.ascender(),
-            "Descent" => face.descender(),
-            "CapHeight" => face.ascender(),
+            "Ascent" => face.as_face_ref().ascender(),
+            "Descent" => face.as_face_ref().descender(),
+            "CapHeight" => face.as_face_ref().ascender(),
             "StemV" => 80,
             "FontFile2" => stream_id,
         });
@@ -123,7 +120,7 @@ impl FontType0Builder {
                 "Supplement" => 0,
             },
             "FontDescriptor" => descriptor_id,
-            "W" => create_width_list(&face),
+            "W" => create_width_list(face.as_face_ref()),
             "DW" => 1000,
         });
         let to_unicode_id = create_to_unicode(doc, &cmap_info, font_name);
@@ -137,7 +134,7 @@ impl FontType0Builder {
             "DescendantFonts" => vec![descendant_font_id.into()],
             "ToUnicode" => to_unicode_id,
         });
-        ExternalFontReference::new(font_id, self.font_data)
+        ExternalFontReference::new(font_id, face)
     }
 }
 

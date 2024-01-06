@@ -575,7 +575,6 @@ dependencies = [
  "lopdf",
  "owned_ttf_parser 0.20.0",
  "printpdf",
- "ttf-parser 0.20.0",
 ]
 
 [[package]]

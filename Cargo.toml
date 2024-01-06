@@ -10,4 +10,3 @@ clap = { version = "4.4.7", features = ["derive"] }
 lopdf = { version = "0.31.0", features = ["serde", "default", "embed_image"] }
 owned_ttf_parser = "0.20.0"
 printpdf = { path = "../../fschutt/printpdf"}
-ttf-parser = "0.20.0"
