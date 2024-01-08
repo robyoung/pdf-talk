@@ -9,7 +9,7 @@ use lopdf::{
 };
 use std::collections::HashMap;
 
-use crate::fonts::{FontMap, FontReference};
+use crate::fonts::FontReference;
 
 /// Adds helper methods to [lopdf::Document].
 pub(crate) trait DocumentAdditions {
@@ -74,23 +74,21 @@ impl<'a> From<i32> for TextItem<'a> {
 /// A fluid interface to avoid lots of verbose lopdf code.
 /// It needs to know about the fonts that are used so that it can
 /// render them properly because Type0 fonts need to be hex encoded.
-#[derive(Default)]
-pub(crate) struct ContentBuilder {
-    operations: Vec<Operation>,
-    font_map: FontMap,
-    xobjects: IdMap,
+pub(crate) struct ContentBuilder<'a> {
+    pub operations: Vec<Operation>,
+    pub resources: &'a Resources,
     current_font: Option<String>,
 }
 
-impl ContentBuilder {
-    pub fn with_font_map(mut self, font_map: FontMap) -> Self {
-        self.font_map = font_map;
-        self
-    }
+pub type Colour = (f32, f32, f32);
 
-    pub fn with_xobject_map(mut self, xobject_map: IdMap) -> Self {
-        self.xobjects = xobject_map;
-        self
+impl<'a> ContentBuilder<'a> {
+    pub fn new(resources: &'a Resources) -> Self {
+        Self {
+            operations: vec![],
+            current_font: None,
+            resources,
+        }
     }
 
     /// Push an operation with args in the fluid interface
@@ -118,7 +116,7 @@ impl ContentBuilder {
     ///
     /// See section 9.3.1 of the PDF spec
     pub fn font(mut self, font: &str, size: u32) -> Self {
-        if !self.font_map.contains_key(font) {
+        if !self.resources.fonts.contains_key(font) {
             panic!("Font {} does not exist in font map", font);
         }
         self.current_font = Some(font.to_owned());
@@ -128,7 +126,7 @@ impl ContentBuilder {
     fn current_font_ref(&self) -> &Box<dyn FontReference> {
         self.current_font
             .as_ref()
-            .and_then(|font| self.font_map.get(font))
+            .and_then(|font| self.resources.fonts.get(font))
             .expect(
                 "Attempting to use a font before referencing it. Call `font` to set a Tf first.",
             )
@@ -151,8 +149,15 @@ impl ContentBuilder {
     /// Set nonstroking colour (`rg`)
     ///
     /// See section 8.6.8 of the PDF spec
-    pub fn colour(self, c: (f32, f32, f32)) -> Self {
+    pub fn colour(self, c: Colour) -> Self {
         self.push("rg", vec![c.0.into(), c.1.into(), c.2.into()])
+    }
+
+    /// Set stroke colour (`RG`)
+    ///
+    /// See section 8.6.8 of the PDF spec
+    pub fn scolour(self, c: Colour) -> Self {
+        self.push("RG", vec![c.0.into(), c.1.into(), c.2.into()])
     }
 
     /// Show text string as array (`TJ`)
@@ -184,6 +189,13 @@ impl ContentBuilder {
     /// See section 8.4.2 of the PDF spec
     pub fn save_graphics_state(self) -> Self {
         self.pushe("q")
+    }
+
+    /// Restore graphics state (`Q`)
+    ///
+    /// See section 8.4.4 of the PDF spec
+    pub fn restore_graphics_state(self) -> Self {
+        self.pushe("Q")
     }
 
     /// Modify transformation matrix (`cm`)
@@ -228,7 +240,8 @@ impl ContentBuilder {
     }
 
     pub fn cm_rotate(self, q: f32) -> Self {
-        let (rc, rs) = (q.cos(), q.sin());
+        let rc = q.cos();
+        let rs = q.sin();
 
         self.modify_trans_matrix(rc, rs, 0f32 - rs, rc, 0, 0)
     }
@@ -238,14 +251,29 @@ impl ContentBuilder {
     /// This usually means insert an image.
     /// See section 8.8 of the PDF spec
     pub fn add_xobject(self, key: &str) -> Self {
-        if !self.xobjects.contains_key(key) {
+        if !self.resources.xobjects.contains_key(key) {
             panic!("Attempt to insert unknown xobject {}", key);
         }
         self.push("Do", vec![key.into()])
     }
 
-    pub fn restore_graphics_state(self) -> Self {
-        self.pushe("Q")
+    /// Set line width (`w`)
+    ///
+    /// See section 8.4.4 of the PDF spec
+    pub fn line_width<T: Into<Number>>(self, w: T) -> Self {
+        self.push("w", vec![Number::as_object(w)])
+    }
+
+    pub fn begin_path<X: Into<Number>, Y: Into<Number>>(self, x: X, y: Y) -> Self {
+        self.push("m", vec![Number::as_object(x), Number::as_object(y)])
+    }
+
+    pub fn append_straight_line<X: Into<Number>, Y: Into<Number>>(self, x: X, y: Y) -> Self {
+        self.push("l", vec![Number::as_object(x), Number::as_object(y)])
+    }
+
+    pub fn stroke_path(self) -> Self {
+        self.pushe("S")
     }
 
     pub fn build_operations(self) -> Vec<Operation> {
@@ -302,12 +330,6 @@ impl From<Number> for Object {
 pub(crate) struct IdMap(HashMap<String, ObjectId>);
 
 impl IdMap {
-    pub fn with_one(key: &str, id: ObjectId) -> Self {
-        let mut this = Self::default();
-        this.set(key, id);
-        this
-    }
-
     pub fn set(&mut self, key: &str, id: ObjectId) {
         if !key.chars().all(|c| c.is_ascii_alphanumeric()) {
             panic!(
@@ -331,16 +353,99 @@ impl IdMap {
     }
 }
 
+/// A mapping of key to [FontReference]
+///
+/// This is to build the font dictionary and to look up the correct `FontReference` to use
+/// when encoding text.
+#[derive(Default)]
+pub(crate) struct FontMap {
+    fonts: HashMap<String, Box<dyn FontReference>>,
+}
+
+impl FontMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[allow(dead_code)]
+    pub fn with_one<T: FontReference + 'static>(key: &str, font: T) -> Self {
+        let mut this = Self::new();
+        this.set(key, font);
+        this
+    }
+
+    pub fn set<T: FontReference + 'static>(&mut self, key: &str, value: T) {
+        if !key.chars().all(|c| c.is_ascii_alphanumeric()) {
+            panic!(
+                "Font reference key must be ASCII alpha numeric but was {}",
+                key
+            );
+        }
+        self.fonts.insert(key.to_owned(), Box::new(value));
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.fonts.contains_key(key)
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Box<dyn FontReference>> {
+        self.fonts.get(key)
+    }
+
+    pub fn as_dictionary(&self) -> Dictionary {
+        let mut dict = Dictionary::new();
+        for (key, value) in self.fonts.iter() {
+            dict.set(key.as_str(), value.object_id());
+        }
+        dict
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct Resources {
+    xobjects: IdMap,
+    fonts: FontMap,
+}
+
+impl Resources {
+    pub fn set_font<T: FontReference + 'static>(&mut self, key: &str, font: T) {
+        self.fonts.set(key, font);
+    }
+
+    pub fn set_xobject(&mut self, key: &str, id: ObjectId) {
+        self.xobjects.set(key, id);
+    }
+
+    pub fn as_dictionary(&self) -> Dictionary {
+        dictionary! {
+            "Font" => self.fonts.as_dictionary(),
+            "XObject" => self.xobjects.as_dictionary(),
+        }
+    }
+
+    pub fn add_to_doc(&self, doc: &mut Document) -> ObjectId {
+        doc.add_object(self.as_dictionary())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use crate::fonts::InternalFontReference;
 
     #[test]
+    #[should_panic]
+    fn add_to_font_map_with_invalid_key() {
+        let mut font_map = FontMap::new();
+        font_map.set("this is invalid", InternalFontReference::default());
+    }
+
+    #[test]
     fn text_builder() {
-        let font_map = FontMap::with_one("F1", InternalFontReference::default());
-        let operations = ContentBuilder::default()
-            .with_font_map(font_map)
+        let mut resources = Resources::default();
+        resources.set_font("F1", InternalFontReference::default());
+        let operations = ContentBuilder::new(&resources)
             .begin_text()
             .font("F1", 36)
             .move_to(100, 200)
@@ -368,18 +473,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn add_text_without_font() {
-        let font_map = FontMap::new();
-        ContentBuilder::default()
-            .with_font_map(font_map)
-            .text("some text");
+        let resources = Resources::default();
+        ContentBuilder::new(&resources).text("some text");
     }
 
     #[test]
     #[should_panic]
     fn use_font_not_in_font_map() {
-        let font_map = FontMap::with_one("F1", InternalFontReference::default());
-        ContentBuilder::default()
-            .with_font_map(font_map)
-            .font("F2", 10);
+        let mut resources = Resources::default();
+        resources.set_font("F1", InternalFontReference::default());
+        ContentBuilder::new(&resources).font("F2", 10);
     }
 }
