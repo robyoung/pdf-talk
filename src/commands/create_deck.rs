@@ -10,8 +10,10 @@ const DARK_BLUE: Colour = (0.106, 0.259, 0.471);
 const LIGHT_BLUE: Colour = (0., 0.624, 0.855);
 
 const PDF_LOGO: &str = r#"q
-435.02 0 m f
-0.984314 0.203922 0.286275 rg 455.188 296.719 m
+435.02 0 m
+f
+0.984314 0.203922 0.286275 rg 
+455.188 296.719 m
 447.98 283.867 423.066 279.832 411.641 278.012 c
 402.633 276.582 393.434 276.152 384.324 276.16 c
 377.172 276.113 370.121 276.465 363.164 276.863 c
@@ -93,9 +95,7 @@ Q
 pub fn main(config: CreateConfig) {
     let mut doc = Document::with_version("1.7");
 
-    let font_path = "assets/Georgia.ttf";
-
-    let font_ref = FontType0Builder::from_file(font_path)
+    let font_ref = FontType0Builder::from_file("assets/Georgia.ttf")
         .expect("could not read font file")
         .add_to_doc(&mut doc);
 
@@ -181,7 +181,7 @@ fn add_tnt_logo(b: ContentBuilder) -> ContentBuilder {
         .append_straight_line(880, 80)
         .stroke_path()
         .restore_graphics_state()
-    // // draw ruler
+    // draw ruler
     // .save_graphics_state()
     // .scolour((0., 0., 0.))
     // .line_width(0.5)
