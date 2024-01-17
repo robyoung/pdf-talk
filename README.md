@@ -1,14 +1,5 @@
 # What even is a PDF?
 
-## Tasks
-
-- [ ] Create command to build slide deck
-- [ ] Create slide deck page of correct dimensions
-- [ ] Add text with T&T font (Georgia) in dark blue
-- [ ] Add T&T logo
-- [ ] Add light blue line
-- [ ] Make reusable template with title, underline, body
-
 ## Reference
 - [Chat GPT](https://chat.openai.com/c/d897ab81-1e3e-48da-822f-5a16321df8f7)
 - [GOV.UK Accessibility](https://www.gov.uk/guidance/publishing-accessible-documents)
@@ -105,20 +96,11 @@ pyftsubset input-font.ttf \
 
 ### Contents
 
-- What will we cover
-- What will we not cover
-    - Content formatting in detail
-    - Additional features
-    - Security (encryption and signatures)
-    - Forms (form inputs and javascript)
-    - Multimedia (audio, video, 3D models)
-    - Rich media (animations and scripted content)
-    - JavaScript
-    - Layers
-    - Annotations
-    - Reading flow
-    - Accessibility features
-    - Tagging and alternate text
+- [What is a PDF?](#what-is-a-pdf)
+- [History of PDF](#history-of-pdf)
+- [Basic structure](#basic-structure)
+- [Document content](#document-content)
+- [A complex PDF](#a-complex-pdf)
 
 ### What is a PDF?
 
