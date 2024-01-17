@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use lopdf::Dictionary;
 use lopdf::StringFormat;
 use lopdf::{dictionary, Document, Object, ObjectId, Stream};
 use owned_ttf_parser::{AsFaceRef, Face, GlyphId, OwnedFace};

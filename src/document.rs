@@ -276,6 +276,10 @@ impl<'a> ContentBuilder<'a> {
         self.pushe("S")
     }
 
+    pub fn fill_path(self) -> Self {
+        self.pushe("f")
+    }
+
     pub fn build_operations(self) -> Vec<Operation> {
         self.operations
     }
@@ -308,6 +312,12 @@ impl Number {
 impl From<i64> for Number {
     fn from(value: i64) -> Self {
         Number::Integer(value)
+    }
+}
+
+impl From<i32> for Number {
+    fn from(value: i32) -> Self {
+        Number::Integer(value as i64)
     }
 }
 

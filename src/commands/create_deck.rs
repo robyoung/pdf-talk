@@ -108,12 +108,14 @@ pub fn main(config: CreateConfig) {
     resources.set_xobject("Im1", image_id);
 
     let resources_id = resources.add_to_doc(&mut doc);
-    let page_id = page1(&mut doc, &resources, pages_id);
+    let mut page_ids = vec![];
+    page_ids.push(title::page(&mut doc, &resources, pages_id));
+    page_ids.push(what::page(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
         "Type" => "Pages",
-        "Kids" => vec![page_id.into()],
-        "Count" => 1,
+        "Kids" => page_ids.iter().map(|&p| p.into()).collect::<Vec<Object>>(),
+        "Count" => (page_ids.len() as u32),
         "Resources" => resources_id,
         "MediaBox" => vec![0.into(), 0.into(), 960.into(), 540.into()],
     };
@@ -124,80 +126,175 @@ pub fn main(config: CreateConfig) {
     println!("create deck");
 }
 
-fn page1(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-    let content_builder = ContentBuilder::new(resources)
-        // write text
-        .begin_text()
-        .font("F1", 38)
-        .move_to(530, 350)
-        .colour(DARK_BLUE) // dark blue
-        .text("What even is a PDF?")
-        .end_text()
-        .begin_text()
-        .font("F1", 17)
-        .move_to(770, 100)
-        .colour(LIGHT_BLUE) // pale blue
-        .text("January 2024")
-        .end_text();
+mod title {
+    use super::*;
 
-    let content_builder = add_tnt_logo(content_builder);
-    let content_builder = add_pdf_logo(content_builder);
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let content_builder = ContentBuilder::new(resources)
+            // write text
+            .begin_text()
+            .font("F1", 38)
+            .move_to(530, 350)
+            .colour(DARK_BLUE) // dark blue
+            .text("What even is a PDF?")
+            .end_text()
+            .begin_text()
+            .font("F1", 17)
+            .move_to(770, 100)
+            .colour(LIGHT_BLUE) // pale blue
+            .text("January 2024")
+            .end_text();
 
-    let content_id = content_builder.add_to_doc(doc);
+        let content_builder = add_tnt_logo(content_builder);
+        let content_builder = add_pdf_logo(content_builder);
 
-    doc.add_object(dictionary! {
-        "Type" => "Page",
-        "Parent" => pages_id,
-        "Contents" => content_id,
-    })
+        let content_id = content_builder.add_to_doc(doc);
+
+        doc.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+        })
+    }
+
+    fn add_tnt_logo(b: ContentBuilder) -> ContentBuilder {
+        let x = 737;
+        let y = 457;
+        let line_height = 28;
+        let line_offset = 28;
+        let line_width = 1.8;
+        b
+            // place image
+            .save_graphics_state()
+            .cm_position(x, y)
+            .cm_scale(118f32 * 1.64, 17f32 * 1.64)
+            .add_xobject("Im1")
+            .restore_graphics_state()
+            // place white line
+            .save_graphics_state()
+            .scolour((1., 1., 1.))
+            .line_width(line_width)
+            .begin_path(x + line_offset, y)
+            .append_straight_line(x + line_offset, y + line_height)
+            .stroke_path()
+            .restore_graphics_state()
+            // place blue line
+            .thin_blue_line((500, 80), (880, 80))
+        // draw ruler
+        // .save_graphics_state()
+        // .scolour((0., 0., 0.))
+        // .line_width(0.5)
+        // .begin_path(880, 0)
+        // .append_straight_line(880, 600)
+        // .stroke_path()
+        // .restore_graphics_state()
+    }
+
+    fn add_pdf_logo(b: ContentBuilder) -> ContentBuilder {
+        let content = Content::decode(PDF_LOGO.as_bytes()).expect("unable to parse PDF Logo bytes");
+        // flip vertically (negative y)
+        // scale to 1.4 size
+        // move (-200, 600)
+        let mut b = b.modify_trans_matrix(1.4, 0, 0, -1.4, -200, 600);
+        b.operations.extend(content.operations.into_iter());
+
+        b
+    }
+}
+mod what {
+    use super::*;
+
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let content_builder = ContentBuilder::new(resources)
+            .title("What is a PDF?")
+            .thick_blue_line((50, 440), (900, 440))
+            .bullet_text(
+                70,
+                380,
+                "Portable: independent of application software, hardware and operating system.",
+            )
+            .bullet_text(
+                70,
+                350,
+                "Document: complete description of fixed-layout flat document.",
+            ).bullet_text(
+                70, 
+                320, 
+                "File: everything needed to present the document can be stored within a single file.",
+            );
+        let content_id = content_builder.add_to_doc(doc);
+
+        doc.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+        })
+    }
 }
 
-fn add_tnt_logo(b: ContentBuilder) -> ContentBuilder {
-    let x = 737;
-    let y = 457;
-    let line_height = 28;
-    let line_offset = 28;
-    let line_width = 1.8;
-    b
-        // place image
-        .save_graphics_state()
-        .cm_position(x, y)
-        .cm_scale(118f32 * 1.64, 17f32 * 1.64)
-        .add_xobject("Im1")
-        .restore_graphics_state()
-        // place white line
-        .save_graphics_state()
-        .scolour((1., 1., 1.))
-        .line_width(line_width)
-        .begin_path(x + line_offset, y)
-        .append_straight_line(x + line_offset, y + line_height)
-        .stroke_path()
-        .restore_graphics_state()
-        // place blue line
-        .save_graphics_state()
+type Coord = (i32, i32);
+
+trait ContentBuilderAdditions {
+    fn bullet(self, x: i32, y: i32) -> Self;
+    fn bullet_text(self, x: i32, y: i32, text: &str) -> Self;
+    fn title(self, text: &str) -> Self;
+    fn text_at(self, x: i32, y: i32, text: &str) -> Self;
+    fn thick_blue_line(self, from: Coord, to: Coord) -> Self;
+    fn thin_blue_line(self, from: Coord, to: Coord) -> Self;
+}
+
+impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
+    fn bullet(self, x: i32, y: i32) -> Self {
+        let size = 6;
+        self.save_graphics_state()
+            .move_to(x, y)
+            .append_straight_line(x, y + size)
+            .append_straight_line(x + size, y + size)
+            .append_straight_line(x + size, y)
+            .append_straight_line(x, y)
+            .colour(LIGHT_BLUE)
+            .fill_path()
+            .restore_graphics_state()
+    }
+    fn bullet_text(self, x: i32, y: i32, text: &str) -> Self {
+        self.bullet(x, y).text_at(x + 15, y - 3, text)
+    }
+
+    fn title(self, text: &str) -> Self {
+        self.begin_text()
+            .font("F1", 38)
+            .move_to(50, 450)
+            .colour(DARK_BLUE)
+            .text(text)
+            .end_text()
+    }
+
+    fn thick_blue_line(self, from: Coord, to: Coord) -> Self {
+        blue_line(self, from, to, 1.)
+    }
+
+    fn thin_blue_line(self, from: Coord, to: Coord) -> Self {
+        blue_line(self, from, to, 0.5)
+    }
+
+    fn text_at(self, x: i32, y: i32, text: &str) -> Self {
+        self.begin_text()
+            .font("F1", 16)
+            .move_to(x, y)
+            .colour(DARK_BLUE)
+            .text(text)
+            .end_text()
+    }
+}
+
+fn blue_line(b: ContentBuilder, from: Coord, to: Coord, width: f32) -> ContentBuilder {
+    let (x1, y1) = from;
+    let (x2, y2) = to;
+    b.save_graphics_state()
         .scolour(LIGHT_BLUE)
-        .line_width(0.5)
-        .begin_path(500, 80)
-        .append_straight_line(880, 80)
+        .line_width(width)
+        .begin_path(x1, y1)
+        .append_straight_line(x2, y2)
         .stroke_path()
         .restore_graphics_state()
-    // draw ruler
-    // .save_graphics_state()
-    // .scolour((0., 0., 0.))
-    // .line_width(0.5)
-    // .begin_path(880, 0)
-    // .append_straight_line(880, 600)
-    // .stroke_path()
-    // .restore_graphics_state()
-}
-
-fn add_pdf_logo(b: ContentBuilder) -> ContentBuilder {
-    let content = Content::decode(&PDF_LOGO.as_bytes()).expect("unable to parse PDF Logo bytes");
-    // flip vertically (negative y)
-    // scale to 1.4 size
-    // move (-200, 600)
-    let mut b = b.modify_trans_matrix(1.4, 0, 0, -1.4, -200, 600);
-    b.operations.extend(content.operations.into_iter());
-
-    b
 }
