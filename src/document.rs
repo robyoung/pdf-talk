@@ -123,6 +123,7 @@ impl<'a> ContentBuilder<'a> {
         self.push("Tf", vec![font.into(), size.into()])
     }
 
+    #[allow(clippy::borrowed_box)]
     fn current_font_ref(&self) -> &Box<dyn FontReference> {
         self.current_font
             .as_ref()
@@ -398,6 +399,7 @@ impl FontMap {
         self.fonts.contains_key(key)
     }
 
+    #[allow(clippy::borrowed_box)]
     pub fn get(&self, key: &str) -> Option<&Box<dyn FontReference>> {
         self.fonts.get(key)
     }

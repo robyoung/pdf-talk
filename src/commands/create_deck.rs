@@ -196,7 +196,7 @@ mod title {
         // scale to 1.4 size
         // move (-200, 600)
         let mut b = b.modify_trans_matrix(1.4, 0, 0, -1.4, -200, 600);
-        b.operations.extend(content.operations.into_iter());
+        b.operations.extend(content.operations);
 
         b
     }
