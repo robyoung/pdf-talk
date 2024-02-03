@@ -110,6 +110,8 @@ pyftsubset input-font.ttf \
 
 ### History
 
+https://www.adobe.com/uk/acrobat/resources/pdf-timeline.html
+
 - 1982 Postscript
 - 1993 PDF 1.0    Text, images, pages, links, bookmarks.
 - 1994 PDF 1.1    Passwords, encryption, device-independent colour.
