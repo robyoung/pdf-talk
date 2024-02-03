@@ -134,13 +134,13 @@ mod title {
             // write text
             .begin_text()
             .font("F1", 38)
-            .move_to(530, 350)
+            .text_position(530, 350)
             .colour(DARK_BLUE) // dark blue
             .text("What even is a PDF?")
             .end_text()
             .begin_text()
             .font("F1", 17)
-            .move_to(770, 100)
+            .text_position(770, 100)
             .colour(LIGHT_BLUE) // pale blue
             .text("January 2024")
             .end_text();
@@ -247,12 +247,12 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     fn bullet(self, x: i32, y: i32) -> Self {
         let size = 6;
         self.save_graphics_state()
-            .move_to(x, y)
+            .colour(LIGHT_BLUE)
+            .begin_path(x, y)
             .append_straight_line(x, y + size)
             .append_straight_line(x + size, y + size)
             .append_straight_line(x + size, y)
             .append_straight_line(x, y)
-            .colour(LIGHT_BLUE)
             .fill_path()
             .restore_graphics_state()
     }
@@ -263,7 +263,7 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     fn title(self, text: &str) -> Self {
         self.begin_text()
             .font("F1", 38)
-            .move_to(50, 450)
+            .text_position(50, 450)
             .colour(DARK_BLUE)
             .text(text)
             .end_text()
@@ -280,7 +280,7 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     fn text_at(self, x: i32, y: i32, text: &str) -> Self {
         self.begin_text()
             .font("F1", 16)
-            .move_to(x, y)
+            .text_position(x, y)
             .colour(DARK_BLUE)
             .text(text)
             .end_text()

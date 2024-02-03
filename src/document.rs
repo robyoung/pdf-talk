@@ -136,7 +136,7 @@ impl<'a> ContentBuilder<'a> {
     /// Move to start of the next line (`Td`)
     ///
     /// See section 9.4.2 of the PDF spec
-    pub fn move_to(self, x: i32, y: i32) -> Self {
+    pub fn text_position(self, x: i32, y: i32) -> Self {
         self.push("Td", vec![x.into(), y.into()])
     }
 
@@ -460,7 +460,7 @@ mod tests {
         let operations = ContentBuilder::new(&resources)
             .begin_text()
             .font("F1", 36)
-            .move_to(100, 200)
+            .text_position(100, 200)
             .leading(36)
             .text("Some text")
             .end_text()
