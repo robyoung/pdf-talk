@@ -297,6 +297,15 @@ impl<'a> ContentBuilder<'a> {
             self.build_content().encode().unwrap(),
         ))
     }
+
+    pub fn add_to_doc_with_page(self, doc: &mut Document, pages_id: ObjectId) -> ObjectId {
+        let content_id = self.add_to_doc(doc);
+        doc.add_object(dictionary! {
+            "Type" => "Page",
+            "Parent" => pages_id,
+            "Contents" => content_id,
+        })
+    }
 }
 
 pub(crate) enum Number {

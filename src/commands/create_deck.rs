@@ -8,6 +8,7 @@ use crate::{
 
 const DARK_BLUE: Colour = (0.106, 0.259, 0.471);
 const LIGHT_BLUE: Colour = (0., 0.624, 0.855);
+const BRIGHT_RED: Colour = (0.97, 0., 0.1);
 
 const PDF_LOGO: &str = r#"q
 435.02 0 m
@@ -111,6 +112,7 @@ pub fn main(config: CreateConfig) {
     let mut page_ids = vec![];
     page_ids.push(title::page(&mut doc, &resources, pages_id));
     page_ids.push(what::page(&mut doc, &resources, pages_id));
+    page_ids.push(history::page(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
         "Type" => "Pages",
@@ -148,13 +150,7 @@ mod title {
         let content_builder = add_tnt_logo(content_builder);
         let content_builder = add_pdf_logo(content_builder);
 
-        let content_id = content_builder.add_to_doc(doc);
-
-        doc.add_object(dictionary! {
-            "Type" => "Page",
-            "Parent" => pages_id,
-            "Contents" => content_id,
-        })
+        content_builder.add_to_doc_with_page(doc, pages_id)
     }
 
     fn add_tnt_logo(b: ContentBuilder) -> ContentBuilder {
@@ -210,25 +206,54 @@ mod what {
             .thick_blue_line((50, 440), (900, 440))
             .bullet_text(
                 70,
-                380,
+                360,
                 "Portable: independent of application software, hardware and operating system.",
             )
             .bullet_text(
                 70,
-                350,
+                300,
                 "Document: complete description of fixed-layout flat document.",
             ).bullet_text(
                 70, 
-                320, 
+                240, 
                 "File: everything needed to present the document can be stored within a single file.",
             );
-        let content_id = content_builder.add_to_doc(doc);
+        content_builder.add_to_doc_with_page(doc, pages_id)
+    }
+}
 
-        doc.add_object(dictionary! {
-            "Type" => "Page",
-            "Parent" => pages_id,
-            "Contents" => content_id,
-        })
+mod history {
+    use super::*;
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let item_vert_offset = 370;
+        let item_vert_space = 50;
+        let mut list_text = TextConfig {
+            x: 140, y: item_vert_offset , ..Default::default()
+        };
+        let mut date_text = TextConfig {
+            x: 70, y: item_vert_offset , colour: Some(BRIGHT_RED), ..Default::default()
+        };
+        let content_builder = ContentBuilder::new(resources)
+            .title("History of PDF")
+            .thick_blue_line((50, 440), (900, 440))
+            .text_with("1990", date_text.then_down(item_vert_space))
+            .text_with("The Camelot Project launched", list_text.then_down(item_vert_space))
+            .text_with("1993", date_text.then_down(item_vert_space))
+            .text_with("Portable Document Format 1.0 launched", list_text.then_down(item_vert_space))
+            .text_with("1994", date_text.then_down(item_vert_space))
+            .text_with("PDF 1.1 passwords and better encryption", list_text.then_down(item_vert_space))
+            .text_with("2001", date_text.then_down(item_vert_space))
+            .text_with("PDF 1.4 accessibility and transparency", list_text.then_down(item_vert_space))
+            .text_with("2006", date_text.then_down(item_vert_space))
+            .text_with("PDF 1.7 stabilisation", list_text.then_down(item_vert_space))
+            .text_with("2008", date_text.then_down(item_vert_space))
+            .text_with("PDF 1.7 ISO standardisation", list_text.then_down(item_vert_space))
+            .text_with("2017", date_text.then_down(item_vert_space))
+            .text_with("PDF 2.0 elimination of prioritary elements", list_text.then_down(item_vert_space))
+        ;
+            
+
+        content_builder.add_to_doc_with_page(doc, pages_id)
     }
 }
 
@@ -239,6 +264,7 @@ trait ContentBuilderAdditions {
     fn bullet_text(self, x: i32, y: i32, text: &str) -> Self;
     fn title(self, text: &str) -> Self;
     fn text_at(self, x: i32, y: i32, text: &str) -> Self;
+    fn text_with(self, text: &str, config: TextConfig) -> Self;
     fn thick_blue_line(self, from: Coord, to: Coord) -> Self;
     fn thin_blue_line(self, from: Coord, to: Coord) -> Self;
 }
@@ -256,6 +282,7 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
             .fill_path()
             .restore_graphics_state()
     }
+
     fn bullet_text(self, x: i32, y: i32, text: &str) -> Self {
         self.bullet(x, y).text_at(x + 15, y - 3, text)
     }
@@ -278,12 +305,36 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     }
 
     fn text_at(self, x: i32, y: i32, text: &str) -> Self {
+        self.text_with(text, TextConfig {
+            x, y, font: None, colour: None,
+        })
+    }
+
+    fn text_with(self, text: &str, config: TextConfig) -> Self {
+        let (font_name, font_size) = config.font.unwrap_or((String::from("F1"), 20));
         self.begin_text()
-            .font("F1", 16)
-            .text_position(x, y)
-            .colour(DARK_BLUE)
+            .font(&font_name, font_size)
+            .text_position(config.x, config.y)
+            .colour(config.colour.unwrap_or(DARK_BLUE))
             .text(text)
             .end_text()
+
+    }
+}
+
+#[derive(Default, Clone)]
+struct TextConfig {
+    x: i32,
+    y: i32,
+    font: Option<(String, u32)>,
+    colour: Option<Colour>,
+}
+
+impl TextConfig {
+    fn then_down(&mut self, y: i32) -> Self {
+        let result = self.clone();
+        self.y -= y;
+        result
     }
 }
 
