@@ -232,6 +232,10 @@ impl<'a> ContentBuilder<'a> {
         )
     }
 
+    /// Transformation matrix "translation"
+    ///
+    /// This modifies the transformation matrix to translate or move the origin
+    /// to the specified position.
     pub fn cm_position<X: Into<Number>, Y: Into<Number>>(self, x: X, y: Y) -> Self {
         self.modify_trans_matrix(1, 0, 0, 1, x, y)
     }
@@ -265,12 +269,19 @@ impl<'a> ContentBuilder<'a> {
         self.push("w", vec![Number::as_object(w)])
     }
 
+    /// Begin path (`m`)
+    ///
+    /// See section 8.5.2
     pub fn begin_path<X: Into<Number>, Y: Into<Number>>(self, x: X, y: Y) -> Self {
         self.push("m", vec![Number::as_object(x), Number::as_object(y)])
     }
 
     pub fn append_straight_line<X: Into<Number>, Y: Into<Number>>(self, x: X, y: Y) -> Self {
         self.push("l", vec![Number::as_object(x), Number::as_object(y)])
+    }
+
+    pub fn close_subpath(self) -> Self {
+        self.pushe("h")
     }
 
     pub fn stroke_path(self) -> Self {

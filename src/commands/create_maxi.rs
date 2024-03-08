@@ -16,25 +16,33 @@ static FIRA_CODE: FontFile = FontFile {
 // static ROBOTO_FONT_PATH: &str = "assets/RobotoMedium.ttf";
 
 pub fn main(config: CreateConfig) {
+    let mut doc = generate_document(&config);
+    config.apply_and_save(&mut doc);
+}
+
+pub(crate) fn generate_document(config: &CreateConfig) -> Document {
     let mut doc = Document::with_version("1.3");
 
     let font_data = std::fs::read(config.font_path(&FIRA_CODE)).expect("could not read font file");
 
     if let FontType::Type0 = config.font_type {
         let font_ref = fonts::type0(&font_data).add_to_doc(&mut doc);
-        create_pages(config, doc, &font_ref)
+        generate_pages(config, doc, &font_ref)
     } else {
         let font_ref = fonts::true_type(&font_data).add_to_doc(&mut doc);
-        create_pages(config, doc, &font_ref)
+        generate_pages(config, doc, &font_ref)
     }
 }
 
-fn create_pages(config: CreateConfig, mut doc: Document, font_ref: &dyn FontReference) {
-    println!("{:?}", config);
+fn generate_pages(
+    config: &CreateConfig,
+    mut doc: Document,
+    font_ref: &dyn FontReference,
+) -> Document {
     let pages_id = doc.new_object_id();
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
-            "F0" => font_ref.object_id(),
+            "F3" => font_ref.object_id(),
         },
 
     });
@@ -43,7 +51,6 @@ fn create_pages(config: CreateConfig, mut doc: Document, font_ref: &dyn FontRefe
         create_page_one(&mut doc, &config, pages_id, font_ref).into(),
         create_page_two(&mut doc, &config, pages_id, font_ref).into(),
         create_page_three(&mut doc, &config, pages_id, font_ref).into(),
-        create_page_three_manual(&mut doc, &config, pages_id, font_ref).into(),
     ];
     let page_count = kids.len();
 
@@ -56,7 +63,7 @@ fn create_pages(config: CreateConfig, mut doc: Document, font_ref: &dyn FontRefe
     };
     doc.objects.insert(pages_id, Object::Dictionary(pages));
     doc.add_catalog(pages_id);
-    config.apply_and_save(&mut doc);
+    doc
 }
 
 fn create_page_one(
@@ -68,7 +75,7 @@ fn create_page_one(
     let content = Content {
         operations: vec![
             Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F0".into(), 28.into()]),
+            Operation::new("Tf", vec!["F3".into(), 28.into()]),
             Operation::new("Td", vec![50.into(), 300.into()]),
             Operation::new("TL", vec![36.into()]),
             Operation::new("Tj", font_ref.render_text("This is a block of text that")),
@@ -100,7 +107,7 @@ fn create_page_two(
         operations: [
             vec![
                 Operation::new("BT", vec![]),
-                Operation::new("Tf", vec!["F0".into(), 36.into()]),
+                Operation::new("Tf", vec!["F3".into(), 36.into()]),
                 Operation::new("Td", vec![140.into(), 500.into()]),
                 Operation::new("TL", vec![48.into()]),
                 Operation::new("Tj", font_ref.render_text("Circle say YAY!")),
@@ -210,42 +217,6 @@ fn create_page_three(
     font_ref: &dyn FontReference,
 ) -> ObjectId {
     let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
-    let content_id = doc.add_object(
-        Stream::new(
-            dictionary! {},
-            Content {
-                operations: vec![
-                    Operation::new("BT", vec![]),
-                    Operation::new("Tf", vec!["F0".into(), 28.into()]),
-                    Operation::new("Td", vec![50.into(), 550.into()]),
-                    Operation::new("TL", vec![36.into()]),
-                    Operation::new("Tj", font_ref.render_text("Horsey say NEIGH!")),
-                    Operation::new("ET", vec![]),
-                ],
-            }
-            .encode()
-            .unwrap(),
-        )
-        .with_compression(config.compress_content),
-    );
-    let page_id = doc.add_object(dictionary! {
-        "Type" => "Page",
-        "Parent" => pages_id,
-        "Contents" => content_id,
-    });
-    doc.insert_image(page_id, image_stream, (100.0, 100.0), (400.0, 400.0))
-        .unwrap();
-
-    page_id
-}
-
-fn create_page_three_manual(
-    doc: &mut Document,
-    config: &CreateConfig,
-    pages_id: ObjectId,
-    _font_ref: &dyn FontReference,
-) -> ObjectId {
-    let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
     let image_id = doc.add_object(image_stream);
     let _m = 400;
     let content_id = doc.add_object(
@@ -253,6 +224,12 @@ fn create_page_three_manual(
             dictionary! {},
             Content {
                 operations: vec![
+                    Operation::new("BT", vec![]),
+                    Operation::new("Tf", vec!["F3".into(), 28.into()]),
+                    Operation::new("Td", vec![50.into(), 550.into()]),
+                    Operation::new("TL", vec![36.into()]),
+                    Operation::new("Tj", font_ref.render_text("Horsey say NEIGH!")),
+                    Operation::new("ET", vec![]),
                     Operation::new("q", vec![]),
                     // Transformation matrix:
                     // See 8.3.3 Common Transformations in the PDF spec
@@ -272,7 +249,7 @@ fn create_page_three_manual(
                             50.into(),     // f move 50 units down
                         ],
                     ),
-                    Operation::new("Do", vec!["Im1".into()]),
+                    Operation::new("Do", vec!["Im4".into()]),
                     Operation::new("Q", vec![]),
                 ],
             }
@@ -287,7 +264,7 @@ fn create_page_three_manual(
         "Contents" => content_id,
         "Resources" => dictionary!{
             "XObject" => dictionary!{
-                "Im1" => image_id,
+                "Im4" => image_id,
             },
         },
     })

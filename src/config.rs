@@ -54,3 +54,16 @@ impl CreateConfig {
         self.save(doc);
     }
 }
+
+impl Default for CreateConfig {
+    fn default() -> Self {
+        Self {
+            xref_type: XrefType::CrossReferenceStream,
+            font_type: FontType::Type0,
+            compress: false,
+            compress_content: false,
+            subset: false,
+            output: PathBuf::from("output.pdf"),
+        }
+    }
+}

@@ -1,14 +1,16 @@
 use lopdf::{content::Content, dictionary, xobject, Document, Object, ObjectId};
 
 use crate::{
+    commands::{create_maxi, create_mini},
     config::CreateConfig,
     document::{Colour, ContentBuilder, DocumentAdditions, Resources},
-    fonts::FontType0Builder,
+    fonts::{self, FontType0Builder},
 };
 
 const DARK_BLUE: Colour = (0.106, 0.259, 0.471);
 const LIGHT_BLUE: Colour = (0., 0.624, 0.855);
 const BRIGHT_RED: Colour = (0.97, 0., 0.1);
+const BLACK: Colour = (0., 0., 0.);
 
 const PDF_LOGO: &str = r#"q
 435.02 0 m
@@ -96,17 +98,12 @@ Q
 pub fn main(config: CreateConfig) {
     let mut doc = Document::with_version("1.7");
 
-    let font_ref = FontType0Builder::from_file("assets/Georgia.ttf")
-        .expect("could not read font file")
-        .add_to_doc(&mut doc);
-
     let pages_id = doc.new_object_id();
 
+    // TODO @robyoung add resources and lopdf::Document to a wrapper type
     let mut resources = Resources::default();
-    resources.set_font("F1", font_ref);
-    let image_stream = xobject::image("assets/tnt-logo.png").expect("could not read tnt logo");
-    let image_id = doc.add_object(image_stream);
-    resources.set_xobject("Im1", image_id);
+    setup_fonts(&mut doc, &mut resources);
+    setup_images(&mut doc, &mut resources);
 
     let resources_id = resources.add_to_doc(&mut doc);
     let mut page_ids = vec![];
@@ -132,7 +129,41 @@ pub fn main(config: CreateConfig) {
     println!("create deck");
 }
 
+fn setup_fonts(doc: &mut Document, resources: &mut Resources) {
+    let font_ref = FontType0Builder::from_file("assets/Georgia.ttf")
+        .expect("could not read font file")
+        .add_to_doc(doc);
+    resources.set_font("F1", font_ref);
+
+    // manually import font from mini
+    let font_ref = fonts::type1("Helvetica").add_to_doc(doc);
+    resources.set_font("F2", font_ref);
+
+    // manually import font from maxi
+    let font_ref = FontType0Builder::from_file("assets/FiraCodeNerdFontMono-Medium.ttf")
+        .expect("could not read font file")
+        .add_to_doc(doc);
+    resources.set_font("F3", font_ref);
+}
+
+fn setup_images(doc: &mut Document, resources: &mut Resources) {
+    let image_stream =
+        xobject::image("assets/web-small.jpg").expect("could not read web screenshot");
+    let image_id = doc.add_object(image_stream);
+    resources.set_xobject("Im1", image_id);
+
+    let image_stream = xobject::image("assets/tnt-logo.png").expect("could not read tnt logo");
+    let image_id = doc.add_object(image_stream);
+    resources.set_xobject("Im3", image_id);
+
+    // manually import image from maxi page 3
+    let image_stream = xobject::image("assets/horsey.jpg").expect("could not read image file");
+    let image_id = doc.add_object(image_stream);
+    resources.set_xobject("Im4", image_id);
+}
+
 mod title {
+    //! Page 1 of the deck
     use super::*;
 
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
@@ -168,7 +199,7 @@ mod title {
             .save_graphics_state()
             .cm_position(x, y)
             .cm_scale(118f32 * 1.64, 17f32 * 1.64)
-            .add_xobject("Im1")
+            .add_xobject("Im3")
             .restore_graphics_state()
             // place white line
             .save_graphics_state()
@@ -202,6 +233,7 @@ mod title {
     }
 }
 mod what {
+    //! Page 2 of the deck
     use super::*;
 
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
@@ -229,6 +261,7 @@ mod what {
 }
 
 mod history {
+    //! Page 3 of the deck
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         let item_vert_offset = 370;
@@ -287,15 +320,111 @@ mod history {
 }
 
 mod three_documents {
+    //! Page 4 of the deck
+
     use super::*;
+
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-        ContentBuilder::new(resources)
+        let mut builder = ContentBuilder::new(resources);
+        builder = add_mini_doc(builder);
+        builder = add_maxi_doc(builder);
+        builder = add_web_doc(builder);
+
+        builder.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn add_mini_doc(mut b: ContentBuilder) -> ContentBuilder {
+        let mini_doc = create_mini::generate_document();
+        let media_box = get_media_box(&mini_doc);
+        let page_id = mini_doc.page_iter().next().unwrap();
+        let content = Content::decode(&mini_doc.get_page_content(page_id).unwrap()).unwrap();
+
+        b = b
             .title("Three documents")
-            .add_to_doc_with_page(doc, pages_id)
+            .text_at(50, 350, "mini.pdf")
+            .save_graphics_state()
+            .cm_position(50, 160)
+            .cm_scale(0.2, 0.2)
+            .scolour(BLACK)
+            .line_width(1.)
+            .begin_path(0, 0)
+            .append_straight_line(0, media_box[3])
+            .append_straight_line(media_box[2], media_box[3])
+            .append_straight_line(media_box[2], 0)
+            .close_subpath()
+            .stroke_path();
+
+        b.operations.extend(content.operations);
+        b.restore_graphics_state()
+    }
+
+    fn as_f32(o: &Object) -> f32 {
+        o.as_f32()
+            .or_else(|_| o.as_i64().map(|i| i as f32))
+            .unwrap()
+    }
+
+    fn get_media_box(doc: &Document) -> [f32; 4] {
+        let page_tree_id = doc
+            .catalog()
+            .and_then(|c| c.get(b"Pages"))
+            .and_then(Object::as_reference)
+            .unwrap();
+        let media_box = doc
+            .get_dictionary(page_tree_id)
+            .and_then(|d| d.get(b"MediaBox"))
+            .and_then(Object::as_array)
+            .unwrap();
+
+        [
+            as_f32(&media_box[0]),
+            as_f32(&media_box[1]),
+            as_f32(&media_box[2]),
+            as_f32(&media_box[3]),
+        ]
+    }
+
+    fn add_maxi_doc(mut b: ContentBuilder) -> ContentBuilder {
+        let maxi_doc = create_maxi::generate_document(&CreateConfig::default());
+        let media_box = get_media_box(&maxi_doc);
+        for (i, page_id) in maxi_doc.page_iter().enumerate() {
+            let content = Content::decode(&maxi_doc.get_page_content(page_id).unwrap()).unwrap();
+            b = b
+                .text_at(350, 350, "maxi.pdf")
+                .save_graphics_state()
+                .cm_position(200 + (i as i32 * 150), 190)
+                .cm_scale(0.2, 0.2)
+                .scolour(BLACK)
+                .line_width(1.)
+                .begin_path(0, 0)
+                .append_straight_line(0, media_box[3])
+                .append_straight_line(media_box[2], media_box[3])
+                .append_straight_line(media_box[2], 0)
+                .close_subpath()
+                .stroke_path();
+
+            b.operations.extend(content.operations);
+            b = b.restore_graphics_state();
+        }
+
+        b
+    }
+
+    fn add_web_doc(mut b: ContentBuilder) -> ContentBuilder {
+        b = b
+            .text_at(690, 350, "web.pdf")
+            .save_graphics_state()
+            .cm_position(670, 50)
+            .cm_scale(200, 270)
+            .add_xobject("Im1")
+            .restore_graphics_state();
+        b
     }
 }
 
 mod tools {
+    //! Page 5 of the deck
+
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         let mut black = TextConfig {
@@ -337,6 +466,8 @@ mod tools {
 }
 
 mod file_structure {
+    //! Page 6 of the deck
+
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         ContentBuilder::new(resources)
@@ -346,6 +477,8 @@ mod file_structure {
 }
 
 mod document_structure {
+    //! Page 7 of the deck
+
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         ContentBuilder::new(resources)
@@ -413,8 +546,7 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
             TextConfig {
                 x,
                 y,
-                font: None,
-                colour: None,
+                ..Default::default()
             },
         )
     }

@@ -9,6 +9,11 @@ use lopdf::{
 };
 
 pub fn main(config: CreateConfig) {
+    let mut doc = generate_document();
+    config.apply_and_save(&mut doc);
+}
+
+pub(crate) fn generate_document() -> Document {
     let mut doc = Document::with_version("1.7");
 
     let pages_id = doc.new_object_id();
@@ -17,13 +22,13 @@ pub fn main(config: CreateConfig) {
 
     let resources_id = doc.add_object(dictionary! {
         "Font" => dictionary!{
-            "F1" => font_ref.object_id(),
+            "F2" => font_ref.object_id(),
         },
     });
     let content = Content {
         operations: vec![
             Operation::new("BT", vec![]),
-            Operation::new("Tf", vec!["F1".into(), 36.into()]),
+            Operation::new("Tf", vec!["F2".into(), 36.into()]),
             Operation::new("Td", vec![100.into(), 600.into()]),
             Operation::new("TL", vec![48.into()]),
             Operation::new(
@@ -55,5 +60,6 @@ pub fn main(config: CreateConfig) {
     doc.objects.insert(pages_id, Object::Dictionary(pages));
 
     doc.add_catalog(pages_id);
-    config.apply_and_save(&mut doc);
+
+    doc
 }
