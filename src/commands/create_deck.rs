@@ -113,6 +113,10 @@ pub fn main(config: CreateConfig) {
     page_ids.push(title::page(&mut doc, &resources, pages_id));
     page_ids.push(what::page(&mut doc, &resources, pages_id));
     page_ids.push(history::page(&mut doc, &resources, pages_id));
+    page_ids.push(three_documents::page(&mut doc, &resources, pages_id));
+    page_ids.push(tools::page(&mut doc, &resources, pages_id));
+    page_ids.push(file_structure::page(&mut doc, &resources, pages_id));
+    page_ids.push(document_structure::page(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
         "Type" => "Pages",
@@ -201,22 +205,24 @@ mod what {
     use super::*;
 
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let mut c = TextConfig {
+            x: 70,
+            y: 360,
+            ..Default::default()
+        };
+        let bullet_space = 60;
         let content_builder = ContentBuilder::new(resources)
             .title("What is a PDF?")
-            .thick_blue_line((50, 440), (900, 440))
             .bullet_text(
-                70,
-                360,
                 "Portable: independent of application software, hardware and operating system.",
+                c.then_down(bullet_space)
             )
             .bullet_text(
-                70,
-                300,
                 "Document: complete description of fixed-layout flat document.",
+                c.then_down(bullet_space)
             ).bullet_text(
-                70, 
-                240, 
                 "File: everything needed to present the document can be stored within a single file.",
+                c.then_down(bullet_space)
             );
         content_builder.add_to_doc_with_page(doc, pages_id)
     }
@@ -228,32 +234,123 @@ mod history {
         let item_vert_offset = 370;
         let item_vert_space = 50;
         let mut list_text = TextConfig {
-            x: 140, y: item_vert_offset , ..Default::default()
+            x: 140,
+            y: item_vert_offset,
+            ..Default::default()
         };
         let mut date_text = TextConfig {
-            x: 70, y: item_vert_offset , colour: Some(BRIGHT_RED), ..Default::default()
+            x: 70,
+            y: item_vert_offset,
+            colour: Some(BRIGHT_RED),
+            ..Default::default()
         };
         let content_builder = ContentBuilder::new(resources)
             .title("History of PDF")
-            .thick_blue_line((50, 440), (900, 440))
             .text_with("1990", date_text.then_down(item_vert_space))
-            .text_with("The Camelot Project launched", list_text.then_down(item_vert_space))
+            .text_with(
+                "The Camelot Project launched",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("1993", date_text.then_down(item_vert_space))
-            .text_with("Portable Document Format 1.0 launched", list_text.then_down(item_vert_space))
+            .text_with(
+                "Portable Document Format 1.0 launched",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("1994", date_text.then_down(item_vert_space))
-            .text_with("PDF 1.1 passwords and better encryption", list_text.then_down(item_vert_space))
+            .text_with(
+                "PDF 1.1 passwords and better encryption",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("2001", date_text.then_down(item_vert_space))
-            .text_with("PDF 1.4 accessibility and transparency", list_text.then_down(item_vert_space))
+            .text_with(
+                "PDF 1.4 accessibility and transparency",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("2006", date_text.then_down(item_vert_space))
-            .text_with("PDF 1.7 stabilisation", list_text.then_down(item_vert_space))
+            .text_with(
+                "PDF 1.7 stabilisation",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("2008", date_text.then_down(item_vert_space))
-            .text_with("PDF 1.7 ISO standardisation", list_text.then_down(item_vert_space))
+            .text_with(
+                "PDF 1.7 ISO standardisation",
+                list_text.then_down(item_vert_space),
+            )
             .text_with("2017", date_text.then_down(item_vert_space))
-            .text_with("PDF 2.0 elimination of prioritary elements", list_text.then_down(item_vert_space))
-        ;
-            
+            .text_with(
+                "PDF 2.0 elimination of prioritary elements",
+                list_text.then_down(item_vert_space),
+            );
 
         content_builder.add_to_doc_with_page(doc, pages_id)
+    }
+}
+
+mod three_documents {
+    use super::*;
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        ContentBuilder::new(resources)
+            .title("Three documents")
+            .add_to_doc_with_page(doc, pages_id)
+    }
+}
+
+mod tools {
+    use super::*;
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let mut black = TextConfig {
+            x: 160,
+            y: 360,
+            ..Default::default()
+        };
+        let mut red = TextConfig {
+            x: 70,
+            y: 360,
+            colour: Some(BRIGHT_RED),
+            ..Default::default()
+        };
+        let bullet_space = 60;
+        let bullet_x = -20;
+        let bullet_y = 3;
+        ContentBuilder::new(resources)
+            .title("PDF tools")
+            .bullet(red.x + bullet_x, red.y + bullet_y)
+            .text_with("qpdf:", red.then_down(bullet_space))
+            .text_with(
+                "useful for exploring PDF files on the command line.",
+                black.then_down(bullet_space),
+            )
+            .bullet(red.x + bullet_x, red.y + bullet_y)
+            .text_with("mutool:", red.then_down(bullet_space))
+            .text_with(
+                "useful for extracting fonts and images from PDF files.",
+                black.then_down(bullet_space),
+            )
+            .bullet(red.x + bullet_x, red.y + bullet_y)
+            .text_with("allsorts:", red.then_down(bullet_space))
+            .text_with(
+                "useful for exploring and subsetting fonts.",
+                black.then_down(bullet_space),
+            )
+            .add_to_doc_with_page(doc, pages_id)
+    }
+}
+
+mod file_structure {
+    use super::*;
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        ContentBuilder::new(resources)
+            .title("File structure")
+            .add_to_doc_with_page(doc, pages_id)
+    }
+}
+
+mod document_structure {
+    use super::*;
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        ContentBuilder::new(resources)
+            .title("Document structure")
+            .add_to_doc_with_page(doc, pages_id)
     }
 }
 
@@ -261,7 +358,8 @@ type Coord = (i32, i32);
 
 trait ContentBuilderAdditions {
     fn bullet(self, x: i32, y: i32) -> Self;
-    fn bullet_text(self, x: i32, y: i32, text: &str) -> Self;
+    fn bullet_text(self, text: &str, config: TextConfig) -> Self;
+    fn title_text(self, text: &str) -> Self;
     fn title(self, text: &str) -> Self;
     fn text_at(self, x: i32, y: i32, text: &str) -> Self;
     fn text_with(self, text: &str, config: TextConfig) -> Self;
@@ -283,17 +381,22 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
             .restore_graphics_state()
     }
 
-    fn bullet_text(self, x: i32, y: i32, text: &str) -> Self {
-        self.bullet(x, y).text_at(x + 15, y - 3, text)
+    fn bullet_text(self, text: &str, config: TextConfig) -> Self {
+        self.bullet(config.x, config.y)
+            .text_at(config.x + 15, config.y - 3, text)
     }
 
-    fn title(self, text: &str) -> Self {
+    fn title_text(self, text: &str) -> Self {
         self.begin_text()
             .font("F1", 38)
             .text_position(50, 450)
             .colour(DARK_BLUE)
             .text(text)
             .end_text()
+    }
+
+    fn title(self, text: &str) -> Self {
+        self.title_text(text).thick_blue_line((50, 440), (900, 440))
     }
 
     fn thick_blue_line(self, from: Coord, to: Coord) -> Self {
@@ -305,9 +408,15 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     }
 
     fn text_at(self, x: i32, y: i32, text: &str) -> Self {
-        self.text_with(text, TextConfig {
-            x, y, font: None, colour: None,
-        })
+        self.text_with(
+            text,
+            TextConfig {
+                x,
+                y,
+                font: None,
+                colour: None,
+            },
+        )
     }
 
     fn text_with(self, text: &str, config: TextConfig) -> Self {
@@ -318,7 +427,6 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
             .colour(config.colour.unwrap_or(DARK_BLUE))
             .text(text)
             .end_text()
-
     }
 }
 
