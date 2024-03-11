@@ -11,6 +11,9 @@ const DARK_BLUE: Colour = (0.106, 0.259, 0.471);
 const LIGHT_BLUE: Colour = (0., 0.624, 0.855);
 const BRIGHT_RED: Colour = (0.97, 0., 0.1);
 const BLACK: Colour = (0., 0., 0.);
+const DARK_GREY: Colour = (0.3, 0.3, 0.3);
+const LIGHT_GREY: Colour = (0.8, 0.8, 0.8);
+const GREY: Colour = (0.5, 0.5, 0.5);
 
 const PDF_LOGO: &str = r#"q
 435.02 0 m
@@ -237,11 +240,7 @@ mod what {
     use super::*;
 
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-        let mut c = TextConfig {
-            x: 70,
-            y: 360,
-            ..Default::default()
-        };
+        let mut c = TextConfig::new(70, 360);
         let bullet_space = 60;
         let content_builder = ContentBuilder::new(resources)
             .title("What is a PDF?")
@@ -266,17 +265,8 @@ mod history {
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         let item_vert_offset = 370;
         let item_vert_space = 50;
-        let mut list_text = TextConfig {
-            x: 140,
-            y: item_vert_offset,
-            ..Default::default()
-        };
-        let mut date_text = TextConfig {
-            x: 70,
-            y: item_vert_offset,
-            colour: Some(BRIGHT_RED),
-            ..Default::default()
-        };
+        let mut list_text = TextConfig::new(140, item_vert_offset);
+        let mut date_text = TextConfig::new(70, item_vert_offset).with_colour(BRIGHT_RED);
         let content_builder = ContentBuilder::new(resources)
             .title("History of PDF")
             .text_with("1990", date_text.then_down(item_vert_space))
@@ -427,17 +417,8 @@ mod tools {
 
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-        let mut black = TextConfig {
-            x: 160,
-            y: 360,
-            ..Default::default()
-        };
-        let mut red = TextConfig {
-            x: 70,
-            y: 360,
-            colour: Some(BRIGHT_RED),
-            ..Default::default()
-        };
+        let mut black = TextConfig::new(160, 360);
+        let mut red = TextConfig::new(70, 360).with_colour(BRIGHT_RED);
         let bullet_space = 60;
         let bullet_x = -20;
         let bullet_y = 3;
@@ -541,14 +522,7 @@ impl<'a> ContentBuilderAdditions for ContentBuilder<'a> {
     }
 
     fn text_at(self, x: i32, y: i32, text: &str) -> Self {
-        self.text_with(
-            text,
-            TextConfig {
-                x,
-                y,
-                ..Default::default()
-            },
-        )
+        self.text_with(text, TextConfig::new(x, y))
     }
 
     fn text_with(self, text: &str, config: TextConfig) -> Self {
