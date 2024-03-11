@@ -129,6 +129,7 @@ fn create_page_two(
 }
 
 fn make_circle_go_yay(radius: f64, center: (f64, f64)) -> Vec<Operation> {
+    // see: https://spencermortensen.com/articles/bezier-circle/
     let c = 4.0 / 3.0 * (f64::sqrt(2.0) - 1.0);
     let yay_offset = radius / 2.0;
 

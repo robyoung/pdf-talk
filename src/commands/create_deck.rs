@@ -451,9 +451,31 @@ mod file_structure {
 
     use super::*;
     pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-        ContentBuilder::new(resources)
+        let mut c = TextConfig::new(70, 360).with_font("F3", 20);
+
+        let b = ContentBuilder::new(resources);
+
+        // add text on left
+        let b = b
             .title("File structure")
-            .add_to_doc_with_page(doc, pages_id)
+            .text_with("Header", c.then_down(50))
+            .text_with("Body", c.then_down(50))
+            .text_with("Cross-reference table", c.then_down(50))
+            .text_with("Trailer", c.then_down(50))
+            .text_with("Startxref", c.then_down(50))
+            .text_with("EOF", c.then_down(50));
+
+        // add file render
+        let b = RoundBox::new((550, 50), 300., 350.)
+            .colour(GREY)
+            .file_overview()
+            .add_section("one", (0.9, 0.6, 0.6), 3)
+            .add_section("two", (0.6, 0.9, 0.6), 6)
+            .add_section("thr", (0.6, 0.6, 0.9), 7)
+            .add_section("fou", (0.8, 0.8, 0.5), 4)
+            .build(b);
+
+        b.add_to_doc_with_page(doc, pages_id)
     }
 }
 
@@ -545,10 +567,247 @@ struct TextConfig {
 }
 
 impl TextConfig {
+    fn new(x: i32, y: i32) -> Self {
+        Self {
+            x,
+            y,
+            ..Default::default()
+        }
+    }
     fn then_down(&mut self, y: i32) -> Self {
         let result = self.clone();
         self.y -= y;
         result
+    }
+
+    fn with_font(self, font: &str, size: u32) -> Self {
+        Self {
+            font: Some((String::from(font), size)),
+            ..self
+        }
+    }
+
+    fn with_colour(self, colour: Colour) -> Self {
+        Self {
+            colour: Some(colour),
+            ..self
+        }
+    }
+}
+
+struct RoundBox {
+    origin: (i32, i32),
+    width: f32,
+    height: f32,
+    radius: f32,
+    line_width: f32,
+    colour: Colour,
+}
+
+impl RoundBox {
+    fn new(origin: (i32, i32), width: f32, height: f32) -> Self {
+        Self {
+            origin,
+            width,
+            height,
+            radius: 15.,
+            line_width: 1.,
+            colour: BLACK,
+        }
+    }
+
+    fn radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    fn line_width(mut self, line_width: f32) -> Self {
+        self.line_width = line_width;
+        self
+    }
+
+    fn colour(mut self, colour: Colour) -> Self {
+        self.colour = colour;
+        self
+    }
+
+    fn build(self, b: ContentBuilder) -> ContentBuilder {
+        let b = self.setup_state(b);
+        let b = self.draw_box(b);
+        b.restore_graphics_state()
+    }
+
+    fn setup_state<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+        b.save_graphics_state()
+            .cm_position(self.origin.0, self.origin.1)
+            .scolour(self.colour)
+            .line_width(self.line_width)
+    }
+
+    fn draw_box<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+        let k: f32 = 4.0 / 3.0 * (f32::sqrt(2.0) - 1.0);
+        let radius = self.radius;
+        let width = self.width;
+        let height = self.height;
+        b.begin_path(radius, 0)
+            .append_straight_line(width - radius, 0)
+            .append_curve(
+                // (width - r, 0) to (width, r)
+                (width - radius) + radius * k,
+                0,
+                width,
+                radius * k,
+                width,
+                0. + radius,
+            )
+            .append_straight_line(width, height - radius)
+            .append_curve(
+                // (width, height - r) to (width - r, height)
+                width,
+                (height - radius) + radius * k,
+                (width - radius) + radius * k,
+                height,
+                width - radius,
+                height,
+            )
+            .append_straight_line(radius, height)
+            .append_curve(
+                // (r, height) to (0, height - r)
+                radius * k,
+                height,
+                0,
+                (height - radius) + radius * k,
+                0,
+                height - radius,
+            )
+            .append_straight_line(0, radius)
+            .append_curve(
+                // (0, r) to (r, 0)
+                0,
+                radius * k,
+                radius * k,
+                0,
+                radius,
+                0,
+            )
+            .stroke_path()
+    }
+
+    fn file_overview(self) -> FileOverview {
+        FileOverview::new(self)
+    }
+}
+
+#[derive(Debug)]
+struct Section {
+    name: String,
+    colour: Colour,
+    size: usize,
+}
+
+struct FileOverview {
+    pub round_box: RoundBox,
+    num_lines: usize,
+    sections: Vec<Section>,
+}
+
+impl FileOverview {
+    fn new(round_box: RoundBox) -> Self {
+        Self {
+            round_box,
+            num_lines: 10,
+            sections: vec![],
+        }
+    }
+
+    fn add_section(mut self, name: &str, colour: Colour, size: usize) -> Self {
+        self.sections.push(Section {
+            name: name.to_string(),
+            colour,
+            size,
+        });
+        self
+    }
+
+    /// Draw lines for the file overview
+    fn draw_lines<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+        let total_weight = self.sections.iter().map(|s| s.size).sum::<usize>();
+        let tick = self.num_lines as f32 / total_weight as f32;
+        let line_height = (self.round_box.height - self.round_box.radius) / self.num_lines as f32;
+        let y_margin = line_height * 0.1;
+        let x_margin = self.round_box.width * 0.05;
+        let line_width = line_height - y_margin * 2.;
+        let line_length = self.round_box.width - x_margin;
+
+        let mut y = line_height / 2. - y_margin + self.round_box.radius / 2.;
+        let mut b = b;
+        let mut used_width: f32 = 0.;
+        let mut lines_done = 0;
+
+        // draw coloured lines for each section
+        for section in &self.sections {
+            // how many lines to draw
+            let mut lines = section.size as f32 * tick;
+
+            // is there any lefttover space in a line from the previous section?
+            if used_width > 0. {
+                let end = line_length * f32::min(used_width + lines, 1.);
+
+                b = b
+                    .save_graphics_state()
+                    .scolour(section.colour)
+                    .line_width(line_width)
+                    .begin_path(x_margin / 2. + line_length * used_width, y + y_margin)
+                    .append_straight_line(end, y + y_margin)
+                    .stroke_path()
+                    .restore_graphics_state();
+
+                // if the used width is less than a full line move on to the next section
+                if lines + used_width < 1. {
+                    used_width += lines;
+                    continue;
+                } else {
+                    lines -= 1. - used_width;
+                    y += line_height;
+                    lines_done += 1;
+                }
+            }
+
+            // draw full lines
+            for _ in 0..lines.floor() as usize {
+                b = b
+                    .save_graphics_state()
+                    .scolour(section.colour)
+                    .line_width(line_width)
+                    .begin_path(x_margin, y + y_margin)
+                    .append_straight_line(line_length, y + y_margin)
+                    .stroke_path()
+                    .restore_graphics_state();
+                y += line_height;
+                lines_done += 1;
+            }
+
+            // draw a partial line for any remainder
+            used_width = lines.fract();
+            if used_width > 0. && lines_done < self.num_lines {
+                b = b
+                    .save_graphics_state()
+                    .scolour(section.colour)
+                    .line_width(line_width)
+                    .begin_path(x_margin, y + y_margin)
+                    .append_straight_line(line_length * used_width, y + y_margin)
+                    .stroke_path()
+                    .restore_graphics_state();
+            }
+        }
+        b
+    }
+
+    fn build(self, b: ContentBuilder) -> ContentBuilder {
+        let b = self.round_box.setup_state(b);
+        let b = self.draw_lines(b);
+        let b = self.round_box.draw_box(b);
+        b.restore_graphics_state()
     }
 }
 

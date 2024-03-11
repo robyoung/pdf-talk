@@ -280,6 +280,35 @@ impl<'a> ContentBuilder<'a> {
         self.push("l", vec![Number::as_object(x), Number::as_object(y)])
     }
 
+    pub fn append_curve<
+        X1: Into<Number>,
+        Y1: Into<Number>,
+        X2: Into<Number>,
+        Y2: Into<Number>,
+        X3: Into<Number>,
+        Y3: Into<Number>,
+    >(
+        self,
+        x1: X1,
+        y1: Y1,
+        x2: X2,
+        y2: Y2,
+        x3: X3,
+        y3: Y3,
+    ) -> Self {
+        self.push(
+            "c",
+            vec![
+                Number::as_object(x1),
+                Number::as_object(y1),
+                Number::as_object(x2),
+                Number::as_object(y2),
+                Number::as_object(x3),
+                Number::as_object(y3),
+            ],
+        )
+    }
+
     pub fn close_subpath(self) -> Self {
         self.pushe("h")
     }
