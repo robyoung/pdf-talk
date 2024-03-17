@@ -65,6 +65,10 @@ mutool extract input.pdf
 
 ### fonttools
 
+```bash
+pip install fonttools
+```
+
 Subset a font with `pyftsubset`
 ```bash
 pyftsubset input-font.ttf \
