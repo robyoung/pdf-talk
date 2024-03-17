@@ -115,7 +115,7 @@ pub fn main(config: CreateConfig) {
     page_ids.push(history::page(&mut doc, &resources, pages_id));
     page_ids.push(three_documents::page(&mut doc, &resources, pages_id));
     page_ids.push(tools::page(&mut doc, &resources, pages_id));
-    page_ids.push(file_structure::page(&mut doc, &resources, pages_id));
+    page_ids.append(&mut file_structure::pages(&mut doc, &resources, pages_id));
     page_ids.push(document_structure::page(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
@@ -450,29 +450,108 @@ mod file_structure {
     //! Page 6 of the deck
 
     use super::*;
-    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+    pub fn pages(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> Vec<ObjectId> {
+        vec![
+            page_for_min_pdf(doc, resources, pages_id),
+            page_for_max_pdf(doc, resources, pages_id),
+            page_for_appended(doc, resources, pages_id),
+        ]
+    }
+
+    fn page_for_min_pdf(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
         let mut c = TextConfig::new(70, 360).with_font("F3", 20);
 
         let b = ContentBuilder::new(resources);
 
         // add text on left
         let b = b
-            .title("File structure")
+            .title("File structure - min.pdf")
             .text_with("Header", c.then_down(50))
-            .text_with("Body", c.then_down(50))
+            .text_with("Body (68%)", c.then_down(50))
             .text_with("Cross-reference table", c.then_down(50))
             .text_with("Trailer", c.then_down(50))
-            .text_with("Startxref", c.then_down(50))
-            .text_with("EOF", c.then_down(50));
+            .text_with("Startxref", c.then_down(50));
 
         // add file render
         let b = RoundBox::new((550, 50), 300., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("one", (0.9, 0.6, 0.6), 3)
-            .add_section("two", (0.6, 0.9, 0.6), 6)
-            .add_section("thr", (0.6, 0.6, 0.9), 7)
-            .add_section("fou", (0.8, 0.8, 0.5), 4)
+            .add_section("Header", (0.9, 0.2, 0.6), 10)
+            .add_section("Body", (0.8, 0.8, 0.5), 457 - 10)
+            .add_section("xref", (0.6, 0.6, 0.9), 606 - 457)
+            .add_section("Trailer", (0.6, 0.9, 0.6), 637 - 606)
+            .add_section("Startxref", (0.9, 0.6, 0.6), 656 - 637)
+            .build(b);
+
+        b.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn page_for_max_pdf(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let mut c = TextConfig::new(70, 360).with_font("F3", 20);
+
+        let b = ContentBuilder::new(resources);
+
+        // add text on left
+        let b = b
+            .title("File structure - max.pdf")
+            .text_with("Header", c.then_down(50))
+            .text_with("Body (99.6%)", c.then_down(50))
+            .text_with("Cross-reference table", c.then_down(50))
+            .text_with("Trailer", c.then_down(50))
+            .text_with("Startxref", c.then_down(50));
+
+        // add file render
+        let b = RoundBox::new((550, 50), 300., 350.)
+            .colour(GREY)
+            .file_overview()
+            .add_section("Header", (0.9, 0.2, 0.6), 10)
+            .add_section("Body", (0.8, 0.8, 0.5), 104371 - 10)
+            .add_section("xref", (0.6, 0.6, 0.9), 104701 - 104371)
+            .add_section("Trailer", (0.6, 0.9, 0.6), 104734 - 104701)
+            .add_section("Startxref", (0.9, 0.6, 0.6), 104755 - 104734)
+            .build(b);
+
+        b.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn page_for_appended(
+        doc: &mut Document,
+        resources: &Resources,
+        pages_id: ObjectId,
+    ) -> ObjectId {
+        let mut c = TextConfig::new(70, 360).with_font("F3", 15);
+        let v = 30;
+
+        let b = ContentBuilder::new(resources);
+
+        // add text on left
+        let b = b
+            .title("File structure - appended.pdf")
+            .text_with("Header", c.then_down(v))
+            .text_with("Body", c.then_down(v))
+            .text_with("Cross-reference table", c.then_down(v))
+            .text_with("Trailer", c.then_down(v))
+            .text_with("Startxref", c.then_down(v))
+            .text_with("Body", c.then_down(v))
+            .text_with("Cross-reference table", c.then_down(v))
+            .text_with("Trailer", c.then_down(v))
+            .text_with("Startxref", c.then_down(v));
+
+        // add file render
+        let b = RoundBox::new((550, 50), 300., 350.)
+            .colour(GREY)
+            .file_overview()
+            // first section
+            .add_section("Header", (0.9, 0.2, 0.6), 10)
+            .add_section("Body", (0.8, 0.8, 0.5), 447)
+            .add_section("xref", (0.6, 0.6, 0.9), 149)
+            .add_section("Trailer", (0.6, 0.9, 0.6), 31)
+            .add_section("Startxref", (0.9, 0.6, 0.6), 19)
+            // second section
+            .add_section("Body", (0.8, 0.8, 0.5), 100)
+            .add_section("xref", (0.6, 0.6, 0.9), 161)
+            .add_section("Trailer", (0.6, 0.9, 0.6), 31)
+            .add_section("Startxref", (0.9, 0.6, 0.6), 19)
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -731,15 +810,17 @@ impl FileOverview {
 
     /// Draw lines for the file overview
     fn draw_lines<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
-        let total_weight = self.sections.iter().map(|s| s.size).sum::<usize>();
-        let tick = self.num_lines as f32 / total_weight as f32;
-        let line_height = (self.round_box.height - self.round_box.radius) / self.num_lines as f32;
-        let y_margin = line_height * 0.1;
+        let total_ticks = self.sections.iter().map(|s| s.size).sum::<usize>() as f32;
+        let lines_per_tick = self.num_lines as f32 / total_ticks;
+        let y_margin = self.round_box.radius * 1.;
         let x_margin = self.round_box.width * 0.05;
-        let line_width = line_height - y_margin * 2.;
-        let line_length = self.round_box.width - x_margin;
+        let inner_height = self.round_box.height - y_margin * 2.;
+        let line_height = inner_height / self.num_lines as f32;
+        let line_margin = line_height * 0.1;
+        let stroke_width = line_height - line_margin * 2.;
+        let line_length = self.round_box.width - x_margin * 2.;
 
-        let mut y = line_height / 2. - y_margin + self.round_box.radius / 2.;
+        let mut y = y_margin + (self.num_lines as f32 - 0.5) * line_height;
         let mut b = b;
         let mut used_width: f32 = 0.;
         let mut lines_done = 0;
@@ -747,18 +828,18 @@ impl FileOverview {
         // draw coloured lines for each section
         for section in &self.sections {
             // how many lines to draw
-            let mut lines = section.size as f32 * tick;
+            let mut lines = section.size as f32 * lines_per_tick;
 
             // is there any lefttover space in a line from the previous section?
             if used_width > 0. {
-                let end = line_length * f32::min(used_width + lines, 1.);
+                let end = x_margin + line_length * f32::min(used_width + lines, 1.);
 
                 b = b
                     .save_graphics_state()
                     .scolour(section.colour)
-                    .line_width(line_width)
-                    .begin_path(x_margin / 2. + line_length * used_width, y + y_margin)
-                    .append_straight_line(end, y + y_margin)
+                    .line_width(stroke_width)
+                    .begin_path(x_margin + line_length * used_width, y)
+                    .append_straight_line(end, y)
                     .stroke_path()
                     .restore_graphics_state();
 
@@ -768,7 +849,7 @@ impl FileOverview {
                     continue;
                 } else {
                     lines -= 1. - used_width;
-                    y += line_height;
+                    y -= line_height;
                     lines_done += 1;
                 }
             }
@@ -778,12 +859,12 @@ impl FileOverview {
                 b = b
                     .save_graphics_state()
                     .scolour(section.colour)
-                    .line_width(line_width)
-                    .begin_path(x_margin, y + y_margin)
-                    .append_straight_line(line_length, y + y_margin)
+                    .line_width(stroke_width)
+                    .begin_path(x_margin, y)
+                    .append_straight_line(x_margin + line_length, y)
                     .stroke_path()
                     .restore_graphics_state();
-                y += line_height;
+                y -= line_height;
                 lines_done += 1;
             }
 
@@ -793,9 +874,9 @@ impl FileOverview {
                 b = b
                     .save_graphics_state()
                     .scolour(section.colour)
-                    .line_width(line_width)
-                    .begin_path(x_margin, y + y_margin)
-                    .append_straight_line(line_length * used_width, y + y_margin)
+                    .line_width(stroke_width)
+                    .begin_path(x_margin, y)
+                    .append_straight_line(x_margin + line_length * used_width, y)
                     .stroke_path()
                     .restore_graphics_state();
             }
