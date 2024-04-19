@@ -280,6 +280,15 @@ impl<'a> ContentBuilder<'a> {
         self.push("l", vec![Number::as_object(x), Number::as_object(y)])
     }
 
+    pub fn draw_line<X1: Into<Number>, Y1: Into<Number>, X2: Into<Number>, Y2: Into<Number>>(
+        self,
+        start: (X1, Y1),
+        end: (X2, Y2),
+    ) -> Self {
+        self.begin_path(start.0, start.1)
+            .append_straight_line(end.0, end.1)
+    }
+
     pub fn append_curve<
         X1: Into<Number>,
         Y1: Into<Number>,
@@ -319,6 +328,10 @@ impl<'a> ContentBuilder<'a> {
 
     pub fn fill_path(self) -> Self {
         self.pushe("f")
+    }
+
+    pub fn fill_stroke_path(self) -> Self {
+        self.pushe("B")
     }
 
     pub fn build_operations(self) -> Vec<Operation> {

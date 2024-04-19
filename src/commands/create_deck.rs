@@ -15,6 +15,20 @@ const DARK_GREY: Colour = (0.3, 0.3, 0.3);
 const LIGHT_GREY: Colour = (0.8, 0.8, 0.8);
 const GREY: Colour = (0.5, 0.5, 0.5);
 
+const MAGENTA: Colour = (0.9, 0.2, 0.6);
+const MUSTARD: Colour = (0.8, 0.8, 0.5);
+const PALE_BLUE: Colour = (0.6, 0.6, 0.9);
+const PALE_GREEN: Colour = (0.6, 0.9, 0.6);
+const PALE_RED: Colour = (0.9, 0.6, 0.6);
+
+fn lighter(colour: Colour, factor: f32) -> Colour {
+    (
+        colour.0 + (1. - colour.0) * factor,
+        colour.1 + (1. - colour.1) * factor,
+        colour.2 + (1. - colour.2) * factor,
+    )
+}
+
 const PDF_LOGO: &str = r#"q
 435.02 0 m
 f
@@ -116,7 +130,7 @@ pub fn main(config: CreateConfig) {
     page_ids.push(three_documents::page(&mut doc, &resources, pages_id));
     page_ids.push(tools::page(&mut doc, &resources, pages_id));
     page_ids.append(&mut file_structure::pages(&mut doc, &resources, pages_id));
-    page_ids.push(document_structure::page(&mut doc, &resources, pages_id));
+    page_ids.append(&mut doc_structure::pages(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
         "Type" => "Pages",
@@ -476,11 +490,11 @@ mod file_structure {
         let b = RoundBox::new((550, 50), 300., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("Header", (0.9, 0.2, 0.6), 10)
-            .add_section("Body", (0.8, 0.8, 0.5), 457 - 10)
-            .add_section("xref", (0.6, 0.6, 0.9), 606 - 457)
-            .add_section("Trailer", (0.6, 0.9, 0.6), 637 - 606)
-            .add_section("Startxref", (0.9, 0.6, 0.6), 656 - 637)
+            .add_section("Header", MAGENTA, 10)
+            .add_section("Body", MUSTARD, 457 - 10)
+            .add_section("xref", PALE_BLUE, 606 - 457)
+            .add_section("Trailer", PALE_GREEN, 637 - 606)
+            .add_section("Startxref", PALE_RED, 656 - 637)
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -504,11 +518,11 @@ mod file_structure {
         let b = RoundBox::new((550, 50), 300., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("Header", (0.9, 0.2, 0.6), 10)
-            .add_section("Body", (0.8, 0.8, 0.5), 104371 - 10)
-            .add_section("xref", (0.6, 0.6, 0.9), 104701 - 104371)
-            .add_section("Trailer", (0.6, 0.9, 0.6), 104734 - 104701)
-            .add_section("Startxref", (0.9, 0.6, 0.6), 104755 - 104734)
+            .add_section("Header", MAGENTA, 10)
+            .add_section("Body", MUSTARD, 104371 - 10)
+            .add_section("xref", PALE_BLUE, 104701 - 104371)
+            .add_section("Trailer", PALE_GREEN, 104734 - 104701)
+            .add_section("Startxref", PALE_RED, 104755 - 104734)
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -542,30 +556,430 @@ mod file_structure {
             .colour(GREY)
             .file_overview()
             // first section
-            .add_section("Header", (0.9, 0.2, 0.6), 10)
-            .add_section("Body", (0.8, 0.8, 0.5), 447)
-            .add_section("xref", (0.6, 0.6, 0.9), 149)
-            .add_section("Trailer", (0.6, 0.9, 0.6), 31)
-            .add_section("Startxref", (0.9, 0.6, 0.6), 19)
+            .add_section("Header", MAGENTA, 10)
+            .add_section("Body", MUSTARD, 447)
+            .add_section("xref", PALE_BLUE, 149)
+            .add_section("Trailer", PALE_GREEN, 31)
+            .add_section("Startxref", PALE_RED, 19)
             // second section
-            .add_section("Body", (0.8, 0.8, 0.5), 100)
-            .add_section("xref", (0.6, 0.6, 0.9), 161)
-            .add_section("Trailer", (0.6, 0.9, 0.6), 31)
-            .add_section("Startxref", (0.9, 0.6, 0.6), 19)
+            .add_section("Body", MUSTARD, 100)
+            .add_section("xref", PALE_BLUE, 161)
+            .add_section("Trailer", PALE_GREEN, 31)
+            .add_section("Startxref", PALE_RED, 19)
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
     }
 }
 
-mod document_structure {
+mod doc_structure {
     //! Page 7 of the deck
 
     use super::*;
-    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
-        ContentBuilder::new(resources)
-            .title("Document structure")
-            .add_to_doc_with_page(doc, pages_id)
+
+    pub fn pages(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> Vec<ObjectId> {
+        vec![
+            page_for_structure(doc, resources, pages_id),
+            page_with_file_location(doc, resources, pages_id),
+            page_with_resources_highlighted(doc, resources, pages_id),
+            page_with_page_tree(doc, resources, pages_id),
+        ]
+    }
+
+    fn page_for_structure(
+        doc: &mut Document,
+        resources: &Resources,
+        pages_id: ObjectId,
+    ) -> ObjectId {
+        let b = ContentBuilder::new(resources);
+
+        let b = b.title("Document structure");
+
+        let offset_x = 450;
+
+        // Boxes with text
+        let mut round_box = RoundBox::new((600, 350), 100., 50.).radius(5.);
+        let c = TextConfig::new(70, 360).with_font("F3", 15);
+
+        let b = round_box.clone().origin((offset_x - 20, 350)).build(b);
+        let b = b.text_with("Trailer", c.at((offset_x, 370)));
+
+        let b = round_box.origin((offset_x + 80, 280)).build(b);
+        let b = b.text_with("Info Dict", c.at((offset_x + 90, 300)));
+
+        let b = round_box.origin((offset_x - 120, 280)).build(b);
+        let b = b.text_with("Catalog", c.at((offset_x - 100, 300)));
+
+        let b = round_box.origin((offset_x - 240, 210)).build(b);
+        let b = b.text_with("Page Tree", c.at((offset_x - 230, 230)));
+
+        let page_x = offset_x - 360;
+        let page_y = 130;
+        let b = round_box.origin((offset_x + 50, page_y)).build(b);
+        let b = b.text_with("Resources", c.at((offset_x + 60, page_y + 20)));
+
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 1", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        let page_x = offset_x - 120;
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 2", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        // Connecting lines
+        let b = b
+            .save_graphics_state()
+            // Trailer -> Info Dict
+            .draw_line((offset_x + 30, 350), (offset_x + 130, 330))
+            // Trailer -> Catalog
+            .draw_line((offset_x + 30, 350), (offset_x - 30, 330))
+            // Catalog -> Page Tree
+            .draw_line((offset_x - 70, 280), (offset_x - 190, 260))
+            .draw_line((offset_x - 190, 210), (offset_x + 100, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 310, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 70, page_y + 50))
+            .draw_line((offset_x - 310, 130), (offset_x - 365, 110))
+            .draw_line((offset_x - 310, 130), (offset_x - 255, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 125, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 15, 110))
+            .stroke_path()
+            .restore_graphics_state();
+
+        b.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn page_with_file_location(
+        doc: &mut Document,
+        resources: &Resources,
+        pages_id: ObjectId,
+    ) -> ObjectId {
+        let b = ContentBuilder::new(resources);
+
+        let b = b.title("Document structure - file structure");
+
+        let offset_x = 450;
+
+        // Boxes with text
+        let mut round_box = RoundBox::new((600, 350), 100., 50.).radius(5.);
+        let c = TextConfig::new(70, 360).with_font("F3", 15);
+
+        let b = round_box
+            .clone()
+            .origin((offset_x - 20, 350))
+            .fill(PALE_GREEN)
+            .build(b);
+        let b = b.text_with("Trailer", c.at((offset_x, 370)));
+
+        let b = round_box
+            .origin((offset_x + 80, 280))
+            .fill(MUSTARD)
+            .build(b);
+        let b = b.text_with("Info Dict", c.at((offset_x + 90, 300)));
+
+        let b = round_box.origin((offset_x - 120, 280)).build(b);
+        let b = b.text_with("Catalog", c.at((offset_x - 100, 300)));
+
+        let b = round_box.origin((offset_x - 240, 210)).build(b);
+        let b = b.text_with("Page Tree", c.at((offset_x - 230, 230)));
+
+        let page_x = offset_x - 360;
+        let page_y = 130;
+        let b = round_box.origin((offset_x + 50, page_y)).build(b);
+        let b = b.text_with("Resources", c.at((offset_x + 60, page_y + 20)));
+
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 1", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        let page_x = offset_x - 120;
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 2", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        // Connecting lines
+        let b = b
+            .save_graphics_state()
+            // Trailer -> Info Dict
+            .draw_line((offset_x + 30, 350), (offset_x + 130, 330))
+            // Trailer -> Catalog
+            .draw_line((offset_x + 30, 350), (offset_x - 30, 330))
+            // Catalog -> Page Tree
+            .draw_line((offset_x - 70, 280), (offset_x - 190, 260))
+            .draw_line((offset_x - 190, 210), (offset_x + 100, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 310, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 70, page_y + 50))
+            .draw_line((offset_x - 310, 130), (offset_x - 365, 110))
+            .draw_line((offset_x - 310, 130), (offset_x - 255, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 125, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 15, 110))
+            .stroke_path()
+            .restore_graphics_state();
+
+        let b = RoundBox::new((700, 50), 200., 350.)
+            .colour(GREY)
+            .file_overview()
+            .add_section("Header", MAGENTA, 10)
+            .add_section("Body", MUSTARD, 350)
+            .add_section("xref", PALE_BLUE, 100)
+            .add_section("Trailer", PALE_GREEN, 50)
+            .add_section("Startxref", PALE_RED, 50)
+            .build(b);
+
+        b.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn page_with_resources_highlighted(
+        doc: &mut Document,
+        resources: &Resources,
+        pages_id: ObjectId,
+    ) -> ObjectId {
+        let b = ContentBuilder::new(resources);
+
+        let b = b.title("Document structure - resources");
+
+        let offset_x = 450;
+
+        // Boxes with text
+        let mut round_box = RoundBox::new((600, 350), 100., 50.).radius(5.);
+        let c = TextConfig::new(70, 360).with_font("F3", 15);
+
+        let b = round_box.clone().origin((offset_x - 20, 350)).build(b);
+        let b = b.text_with("Trailer", c.at((offset_x, 370)));
+
+        let b = round_box.origin((offset_x + 80, 280)).build(b);
+        let b = b.text_with("Info Dict", c.at((offset_x + 90, 300)));
+
+        let b = round_box.origin((offset_x - 120, 280)).build(b);
+        let b = b.text_with("Catalog", c.at((offset_x - 100, 300)));
+
+        let b = round_box.origin((offset_x - 240, 210)).build(b);
+        let b = b.text_with("Page Tree", c.at((offset_x - 230, 230)));
+
+        let highlight = lighter(PALE_GREEN, 0.2);
+        let page_x = offset_x - 360;
+        let page_y = 130;
+        let b = round_box
+            .origin((offset_x + 50, page_y))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Resources", c.at((offset_x + 60, page_y + 20)));
+
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 1", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box
+            .origin((page_x + 55, 60))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        let page_x = offset_x - 120;
+        let b = round_box.origin((page_x, page_y)).build(b);
+        let b = b.text_with("Page 2", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box
+            .origin((page_x + 55, 60))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        // Connecting lines
+        let b = b
+            .save_graphics_state()
+            // Trailer -> Info Dict
+            .draw_line((offset_x + 30, 350), (offset_x + 130, 330))
+            // Trailer -> Catalog
+            .draw_line((offset_x + 30, 350), (offset_x - 30, 330))
+            // Catalog -> Page Tree
+            .draw_line((offset_x - 70, 280), (offset_x - 190, 260))
+            .draw_line((offset_x - 190, 210), (offset_x + 100, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 310, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 70, page_y + 50))
+            .draw_line((offset_x - 310, 130), (offset_x - 365, 110))
+            .draw_line((offset_x - 310, 130), (offset_x - 255, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 125, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 15, 110))
+            .stroke_path()
+            .restore_graphics_state();
+
+        b.add_to_doc_with_page(doc, pages_id)
+    }
+
+    fn page_with_page_tree(
+        doc: &mut Document,
+        resources: &Resources,
+        pages_id: ObjectId,
+    ) -> ObjectId {
+        let b = ContentBuilder::new(resources);
+
+        let b = b.title("Document structure - page tree");
+
+        let offset_x = 450;
+
+        // Boxes with text
+        let mut round_box = RoundBox::new((600, 350), 100., 50.).radius(5.);
+        let c = TextConfig::new(70, 360).with_font("F3", 15);
+
+        let b = round_box.clone().origin((offset_x - 20, 350)).build(b);
+        let b = b.text_with("Trailer", c.at((offset_x, 370)));
+
+        let b = round_box.origin((offset_x + 80, 280)).build(b);
+        let b = b.text_with("Info Dict", c.at((offset_x + 90, 300)));
+
+        let b = round_box.origin((offset_x - 120, 280)).build(b);
+        let b = b.text_with("Catalog", c.at((offset_x - 100, 300)));
+
+        let highlight = lighter(PALE_GREEN, 0.2);
+        let b = round_box
+            .origin((offset_x - 240, 210))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Page Tree", c.at((offset_x - 230, 230)));
+
+        let page_x = offset_x - 360;
+        let page_y = 130;
+        let b = round_box.origin((offset_x + 50, page_y)).build(b);
+        let b = b.text_with("Resources", c.at((offset_x + 60, page_y + 20)));
+
+        let b = round_box
+            .origin((page_x, page_y))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Page 1", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        let page_x = offset_x - 120;
+        let b = round_box
+            .origin((page_x, page_y))
+            .clone()
+            .fill(highlight)
+            .build(b);
+        let b = b.text_with("Page 2", c.at((page_x + 25, page_y + 20)));
+
+        let b = round_box.origin((page_x - 55, 60)).build(b);
+        let b = b.text_with("Content", c.at((page_x - 38, 80)));
+
+        let b = round_box.origin((page_x + 55, 60)).build(b);
+        let b = b.text_with("Resources", c.at((page_x + 65, 80)));
+
+        // Connecting lines
+        let b = b
+            .save_graphics_state()
+            // Trailer -> Info Dict
+            .draw_line((offset_x + 30, 350), (offset_x + 130, 330))
+            // Trailer -> Catalog
+            .draw_line((offset_x + 30, 350), (offset_x - 30, 330))
+            // Catalog -> Page Tree
+            .draw_line((offset_x - 70, 280), (offset_x - 190, 260))
+            .draw_line((offset_x - 190, 210), (offset_x + 100, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 310, page_y + 50))
+            .draw_line((offset_x - 190, 210), (offset_x - 70, page_y + 50))
+            .draw_line((offset_x - 310, 130), (offset_x - 365, 110))
+            .draw_line((offset_x - 310, 130), (offset_x - 255, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 125, 110))
+            .draw_line((offset_x - 70, 130), (offset_x - 15, 110))
+            .stroke_path()
+            .restore_graphics_state();
+
+        let b = b
+            .save_graphics_state()
+            .cm_position(750, 350)
+            .cm_scale(0.7, 0.7);
+
+        let ox = 70;
+        let oy = 80;
+
+        let gy = |n: i32| -oy / 2 * n - 100 / 2 * n;
+
+        let b = round_box.origin((-10, 0)).build(b);
+        let b = b.text_with("Page Tree", c.at((0, 20)));
+
+        let b = round_box.origin((-ox, -100)).build(b);
+        let b = b.text_with("Page Tree", c.at((-ox + 10, -80)));
+
+        let b = round_box.origin((-ox, gy(2))).build(b);
+        let b = b.text_with("Resources", c.at((-ox + 10, gy(2) + 20)));
+
+        let b = round_box.origin((-ox, gy(3))).build(b);
+        let b = b.text_with("Page 1", c.at((-ox + 20, gy(3) + 20)));
+
+        let b = round_box.origin((-ox, gy(4))).build(b);
+        let b = b.text_with("Page 2", c.at((-ox + 20, gy(4) + 20)));
+
+        let b = round_box.origin((ox, -100)).build(b);
+        let b = b.text_with("Page Tree", c.at((ox + 10, -80)));
+
+        let b = round_box.origin((ox, gy(2))).build(b);
+        let b = b.text_with("Resources", c.at((ox + 10, gy(2) + 20)));
+
+        let b = round_box.origin((ox, gy(3))).build(b);
+        let b = b.text_with("Page 3", c.at((ox + 20, gy(3) + 20)));
+
+        let b = round_box.origin((ox, gy(4))).build(b);
+        let b = b.text_with("Page 4", c.at((ox + 20, gy(4) + 20)));
+
+        let gy = |n: i32| -100 / 2 * (n - 1) - oy / 2 * n - oy / 4;
+
+        let b = b
+            .save_graphics_state()
+            // From root
+            .draw_line((ox / 2, 0), (-ox / 2, -50))
+            .draw_line((ox / 2, 0), ((ox / 2) * 3, -50))
+            // Left side
+            .draw_line((-ox, -75), (-ox - 20, -75))
+            .draw_line((-ox - 20, -75), (-ox - 20, gy(4)))
+            .draw_line((-ox - 20, gy(2)), (-ox, gy(2)))
+            .draw_line((-ox - 20, gy(3)), (-ox, gy(3)))
+            .draw_line((-ox - 20, gy(4)), (-ox, gy(4)))
+            // Right side
+            .draw_line((ox + 100, -75), (ox + 100 + 20, -75))
+            .draw_line((ox + 100 + 20, -75), (ox + 100 + 20, gy(4)))
+            .draw_line((ox + 100, gy(2)), (ox + 100 + 20, gy(2)))
+            .draw_line((ox + 100, gy(3)), (ox + 100 + 20, gy(3)))
+            .draw_line((ox + 100, gy(4)), (ox + 100 + 20, gy(4)))
+            .stroke_path()
+            .restore_graphics_state();
+
+        let b = b.restore_graphics_state();
+
+        b.add_to_doc_with_page(doc, pages_id)
     }
 }
 
@@ -659,6 +1073,14 @@ impl TextConfig {
         result
     }
 
+    fn at(&self, origin: (i32, i32)) -> Self {
+        Self {
+            x: origin.0,
+            y: origin.1,
+            ..self.clone()
+        }
+    }
+
     fn with_font(self, font: &str, size: u32) -> Self {
         Self {
             font: Some((String::from(font), size)),
@@ -674,13 +1096,15 @@ impl TextConfig {
     }
 }
 
+#[derive(Clone)]
 struct RoundBox {
     origin: (i32, i32),
     width: f32,
     height: f32,
     radius: f32,
     line_width: f32,
-    colour: Colour,
+    stroke_colour: Colour,
+    fill_colour: Option<Colour>,
 }
 
 impl RoundBox {
@@ -691,8 +1115,14 @@ impl RoundBox {
             height,
             radius: 15.,
             line_width: 1.,
-            colour: BLACK,
+            stroke_colour: BLACK,
+            fill_colour: None,
         }
+    }
+
+    fn origin(&mut self, origin: (i32, i32)) -> &mut Self {
+        self.origin = origin;
+        self
     }
 
     fn radius(mut self, radius: f32) -> Self {
@@ -706,21 +1136,37 @@ impl RoundBox {
     }
 
     fn colour(mut self, colour: Colour) -> Self {
-        self.colour = colour;
+        self.stroke_colour = colour;
         self
     }
 
-    fn build(self, b: ContentBuilder) -> ContentBuilder {
+    fn fill(&mut self, colour: Colour) -> &mut Self {
+        self.fill_colour = Some(colour);
+        self
+    }
+
+    fn no_fill(&mut self) -> &mut Self {
+        self.fill_colour = None;
+        self
+    }
+
+    fn build<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
         let b = self.setup_state(b);
         let b = self.draw_box(b);
         b.restore_graphics_state()
     }
 
     fn setup_state<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
-        b.save_graphics_state()
+        let b = b
+            .save_graphics_state()
             .cm_position(self.origin.0, self.origin.1)
-            .scolour(self.colour)
-            .line_width(self.line_width)
+            .scolour(self.stroke_colour)
+            .line_width(self.line_width);
+        if let Some(colour) = self.fill_colour {
+            b.colour(colour)
+        } else {
+            b
+        }
     }
 
     fn draw_box<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
@@ -728,7 +1174,8 @@ impl RoundBox {
         let radius = self.radius;
         let width = self.width;
         let height = self.height;
-        b.begin_path(radius, 0)
+        let b = b
+            .begin_path(radius, 0)
             .append_straight_line(width - radius, 0)
             .append_curve(
                 // (width - r, 0) to (width, r)
@@ -768,8 +1215,13 @@ impl RoundBox {
                 0,
                 radius,
                 0,
-            )
-            .stroke_path()
+            );
+
+        if self.fill_colour.is_some() {
+            b.fill_stroke_path()
+        } else {
+            b.stroke_path()
+        }
     }
 
     fn file_overview(self) -> FileOverview {
