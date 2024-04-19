@@ -48,9 +48,9 @@ fn generate_pages(
     });
 
     let kids = vec![
-        create_page_one(&mut doc, &config, pages_id, font_ref).into(),
-        create_page_two(&mut doc, &config, pages_id, font_ref).into(),
-        create_page_three(&mut doc, &config, pages_id, font_ref).into(),
+        create_page_one(&mut doc, config, pages_id, font_ref).into(),
+        create_page_two(&mut doc, config, pages_id, font_ref).into(),
+        create_page_three(&mut doc, config, pages_id, font_ref).into(),
     ];
     let page_count = kids.len();
 

@@ -11,8 +11,6 @@ const DARK_BLUE: Colour = (0.106, 0.259, 0.471);
 const LIGHT_BLUE: Colour = (0., 0.624, 0.855);
 const BRIGHT_RED: Colour = (0.97, 0., 0.1);
 const BLACK: Colour = (0., 0., 0.);
-const DARK_GREY: Colour = (0.3, 0.3, 0.3);
-const LIGHT_GREY: Colour = (0.8, 0.8, 0.8);
 const GREY: Colour = (0.5, 0.5, 0.5);
 
 const MAGENTA: Colour = (0.9, 0.2, 0.6);
@@ -123,12 +121,13 @@ pub fn main(config: CreateConfig) {
     setup_images(&mut doc, &mut resources);
 
     let resources_id = resources.add_to_doc(&mut doc);
-    let mut page_ids = vec![];
-    page_ids.push(title::page(&mut doc, &resources, pages_id));
-    page_ids.push(what::page(&mut doc, &resources, pages_id));
-    page_ids.push(history::page(&mut doc, &resources, pages_id));
-    page_ids.push(three_documents::page(&mut doc, &resources, pages_id));
-    page_ids.push(tools::page(&mut doc, &resources, pages_id));
+    let mut page_ids = vec![
+        title::page(&mut doc, &resources, pages_id),
+        what::page(&mut doc, &resources, pages_id),
+        history::page(&mut doc, &resources, pages_id),
+        three_documents::page(&mut doc, &resources, pages_id),
+        tools::page(&mut doc, &resources, pages_id),
+    ];
     page_ids.append(&mut file_structure::pages(&mut doc, &resources, pages_id));
     page_ids.append(&mut doc_structure::pages(&mut doc, &resources, pages_id));
 
@@ -490,11 +489,11 @@ mod file_structure {
         let b = RoundBox::new((550, 50), 300., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("Header", MAGENTA, 10)
-            .add_section("Body", MUSTARD, 457 - 10)
-            .add_section("xref", PALE_BLUE, 606 - 457)
-            .add_section("Trailer", PALE_GREEN, 637 - 606)
-            .add_section("Startxref", PALE_RED, 656 - 637)
+            .add_section(MAGENTA, 10) // Header
+            .add_section(MUSTARD, 457 - 10) // Body
+            .add_section(PALE_BLUE, 606 - 457) // xref
+            .add_section(PALE_GREEN, 637 - 606) // Trailer
+            .add_section(PALE_RED, 656 - 637) // Startxref
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -518,11 +517,11 @@ mod file_structure {
         let b = RoundBox::new((550, 50), 300., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("Header", MAGENTA, 10)
-            .add_section("Body", MUSTARD, 104371 - 10)
-            .add_section("xref", PALE_BLUE, 104701 - 104371)
-            .add_section("Trailer", PALE_GREEN, 104734 - 104701)
-            .add_section("Startxref", PALE_RED, 104755 - 104734)
+            .add_section(MAGENTA, 10) // Header
+            .add_section(MUSTARD, 104371 - 10) // Body
+            .add_section(PALE_BLUE, 104701 - 104371) // xref
+            .add_section(PALE_GREEN, 104734 - 104701) // Trailer
+            .add_section(PALE_RED, 104755 - 104734) // Startxref
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -556,16 +555,16 @@ mod file_structure {
             .colour(GREY)
             .file_overview()
             // first section
-            .add_section("Header", MAGENTA, 10)
-            .add_section("Body", MUSTARD, 447)
-            .add_section("xref", PALE_BLUE, 149)
-            .add_section("Trailer", PALE_GREEN, 31)
-            .add_section("Startxref", PALE_RED, 19)
+            .add_section(MAGENTA, 10) // Header
+            .add_section(MUSTARD, 447) // Body
+            .add_section(PALE_BLUE, 149) // xref
+            .add_section(PALE_GREEN, 31) // Trailer
+            .add_section(PALE_RED, 19) // Startxref
             // second section
-            .add_section("Body", MUSTARD, 100)
-            .add_section("xref", PALE_BLUE, 161)
-            .add_section("Trailer", PALE_GREEN, 31)
-            .add_section("Startxref", PALE_RED, 19)
+            .add_section(MUSTARD, 100) // Body
+            .add_section(PALE_BLUE, 161) // xref
+            .add_section(PALE_GREEN, 31) // Trailer
+            .add_section(PALE_RED, 19) // Startxref
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -739,11 +738,11 @@ mod doc_structure {
         let b = RoundBox::new((700, 50), 200., 350.)
             .colour(GREY)
             .file_overview()
-            .add_section("Header", MAGENTA, 10)
-            .add_section("Body", MUSTARD, 350)
-            .add_section("xref", PALE_BLUE, 100)
-            .add_section("Trailer", PALE_GREEN, 50)
-            .add_section("Startxref", PALE_RED, 50)
+            .add_section(MAGENTA, 10) // Header
+            .add_section(MUSTARD, 350) // Body
+            .add_section(PALE_BLUE, 100) // xref
+            .add_section(PALE_GREEN, 50) // Trailer
+            .add_section(PALE_RED, 50) // Startxref
             .build(b);
 
         b.add_to_doc_with_page(doc, pages_id)
@@ -1150,13 +1149,13 @@ impl RoundBox {
         self
     }
 
-    fn build<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+    fn build<'b>(&self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
         let b = self.setup_state(b);
         let b = self.draw_box(b);
         b.restore_graphics_state()
     }
 
-    fn setup_state<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+    fn setup_state<'b>(&self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
         let b = b
             .save_graphics_state()
             .cm_position(self.origin.0, self.origin.1)
@@ -1169,7 +1168,7 @@ impl RoundBox {
         }
     }
 
-    fn draw_box<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+    fn draw_box<'b>(&self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
         let k: f32 = 4.0 / 3.0 * (f32::sqrt(2.0) - 1.0);
         let radius = self.radius;
         let width = self.width;
@@ -1231,7 +1230,6 @@ impl RoundBox {
 
 #[derive(Debug)]
 struct Section {
-    name: String,
     colour: Colour,
     size: usize,
 }
@@ -1251,17 +1249,13 @@ impl FileOverview {
         }
     }
 
-    fn add_section(mut self, name: &str, colour: Colour, size: usize) -> Self {
-        self.sections.push(Section {
-            name: name.to_string(),
-            colour,
-            size,
-        });
+    fn add_section(mut self, colour: Colour, size: usize) -> Self {
+        self.sections.push(Section { colour, size });
         self
     }
 
     /// Draw lines for the file overview
-    fn draw_lines<'a, 'b>(&'a self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
+    fn draw_lines<'b>(&self, b: ContentBuilder<'b>) -> ContentBuilder<'b> {
         let total_ticks = self.sections.iter().map(|s| s.size).sum::<usize>() as f32;
         let lines_per_tick = self.num_lines as f32 / total_ticks;
         let y_margin = self.round_box.radius * 1.;
