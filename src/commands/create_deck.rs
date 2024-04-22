@@ -130,6 +130,7 @@ pub fn main(config: CreateConfig) {
     ];
     page_ids.append(&mut file_structure::pages(&mut doc, &resources, pages_id));
     page_ids.append(&mut doc_structure::pages(&mut doc, &resources, pages_id));
+    page_ids.push(closer::page(&mut doc, &resources, pages_id));
 
     let pages = dictionary! {
         "Type" => "Pages",
@@ -982,6 +983,19 @@ mod doc_structure {
     }
 }
 
+mod closer {
+
+    use super::*;
+
+    pub fn page(doc: &mut Document, resources: &Resources, pages_id: ObjectId) -> ObjectId {
+        let c = TextConfig::new(170, 200).with_font("F1", 80);
+
+        ContentBuilder::new(resources)
+            .title("Let's take a look")
+            .text_with("Into the files...", c)
+            .add_to_doc_with_page(doc, pages_id)
+    }
+}
 type Coord = (i32, i32);
 
 trait ContentBuilderAdditions {
