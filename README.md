@@ -115,6 +115,16 @@ pyftsubset input-font.ttf \
 - https://crates.io/crates/printpdf
 - https://crates.io/crates/lopdf
 
+## Example files
+
+| Name                                        | Files                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Minimal                                     | [PDF](./pdfs/mini.pdf) \| [qPDF](./pdfs/mini.qpdf.pdf)                                             |
+| Maximal streams and type0 font              | [PDF](./pdfs/maxi-type0-stream.pdf) \| [qPDF](./pdfs/maxi-type0-stream.qpdf.pdf)                   |
+| Maximal no streams and ttf font             | [PDF](./pdfs/maxi-ttf-nostream.pdf) \| [qPDF](./pdfs/maxi-ttf-nostream.qpdf.pdf)                   |
+| Maximal no streams, ttf font, no subsetting | [PDF](./pdfs/maxi-ttf-nostream-nosubset.pdf) \| [qPDF](./pdfs/maxi-ttf-nostream-nosubset.qpdf.pdf) |
+| Web page                                    | [PDF](./pdfs/web.pdf) \| [qPDF](./pdfs/web.qpdf.pdf)                                               |
+
 ## Talk notes
 
 ### Contents
@@ -204,3 +214,15 @@ https://www.adobe.com/uk/acrobat/resources/pdf-timeline.html
     - Resources (dictionary) (Spec 7.8.3) a dictionary of resources that may be used in a content stream. For example `<</Font<</F1 2 0 R>>>>` maps the name `F1` to an indirect object reference `2 0`
     - Page (dictionary) (Spec 7.7.3.3) a leaf in the page tree.
       - Content Stream (stream or array) (Spec 7.8.2)
+
+### Content stream
+
+- See Table 50 in Spec 8.2 Graphics Objects for a list of operators that can be used in a content stream.
+- See Spec 7.3.4 String objects for details of listeral strings `(...)`, hex strings `<...>`, and name objects `/...`.
+
+### Problems
+
+_Text extraction_: Extracting text from a PDF can be difficult because the text is not stored in a simple way. Text is
+often shifted slightly which can be interpreted as space or vice versa.
+
+_Font subsetting_: When merging PDF files the fonts can be duplicated or incorrectly subsetted which can result in bigger files. We see this with the PDF generator.

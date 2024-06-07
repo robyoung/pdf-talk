@@ -21,7 +21,7 @@ pub fn main(config: CreateConfig) {
 }
 
 pub(crate) fn generate_document(config: &CreateConfig) -> Document {
-    let mut doc = Document::with_version("1.3");
+    let mut doc = Document::with_version("1.7");
 
     let font_data = std::fs::read(config.font_path(&FIRA_CODE)).expect("could not read font file");
 
