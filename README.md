@@ -124,6 +124,7 @@ pyftsubset input-font.ttf \
 | Maximal no streams and ttf font             | [PDF](./pdfs/maxi-ttf-nostream.pdf) \| [qPDF](./pdfs/maxi-ttf-nostream.qpdf.pdf)                   |
 | Maximal no streams, ttf font, no subsetting | [PDF](./pdfs/maxi-ttf-nostream-nosubset.pdf) \| [qPDF](./pdfs/maxi-ttf-nostream-nosubset.qpdf.pdf) |
 | Web page                                    | [PDF](./pdfs/web.pdf) \| [qPDF](./pdfs/web.qpdf.pdf)                                               |
+| Slide deck                                  | [PDF](./pdfs/deck.pdf)                                                                                  |
 
 ## Talk notes
 
