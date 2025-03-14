@@ -13,8 +13,6 @@ cargo run create deck deck.pdf
 This repository contains a number of commands for generating different PDF files.
 The following command will show you what PDFs can be generated.
 
-````bash
-
 ```bash
 cargo run create
 ````
@@ -68,7 +66,15 @@ allsorts subset \
 
 ### mutool
 
+https://www.mupdf.command
+
 Useful for extracting fonts and images from PDF files.
+
+Install the CLI on Mac with
+
+```bash
+brew install mupdf
+```
 
 List fonts and images
 
